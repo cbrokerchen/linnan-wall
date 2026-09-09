@@ -1,0 +1,13 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-east1",
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "site": "linnan-wall",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]}]
+  }
+}

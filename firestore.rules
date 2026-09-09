@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 舊的 wordcloud_words（保留，使用者自己玩的）
+    match /wordcloud_words/{document} {
+      allow read, write: if true;
+    }
+    // scout_trips 集合：任何人可讀寫（童軍追蹤用，連結限群組內分享）
+    match /scout_trips/{trip}/{document=**} {
+      allow read, write: if true;
+    }
+    // 討論牆：knows URL 即可用，免登入（10/12 工人會）
+    // ponytail: 無鑑權，任何能連上網址的人皆可讀寫 posts/config；活動內部使用可接受
+    match /posts/{doc} {
+      allow read, write: if true;
+    }
+    match /config/{doc} {
+      allow read, write: if true;
+    }
+    // 其他集合預設禁止
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>教會討論牆</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--accent:#38bdf8;--text:#e2e8f0;--muted:#94a3b8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;min-height:100vh}
+  .wrap{max-width:900px;margin:0 auto;padding:16px}
+  .qbar{background:var(--card);border-radius:12px;padding:20px;margin-bottom:16px;border:2px solid var(--accent)}
+  .qbar h1{font-size:1.2rem;color:var(--accent);margin-bottom:8px}
+  .qbar .q{font-size:1.35rem;font-weight:700;line-height:1.5}
+  .tabs{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .tabs button{flex:1;min-width:90px;padding:10px;border-radius:8px;border:1px solid var(--muted);background:transparent;color:var(--text);font-size:1rem;cursor:pointer}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#082f49;font-weight:700}
+  #inputs textarea{width:100%;padding:12px;margin-bottom:10px;border-radius:8px;border:1px solid var(--muted);background:#0b1220;color:var(--text);font-size:1.05rem}
+  #inputs .hint{color:var(--muted);font-size:.9rem;margin-bottom:8px}
+  #sendBtn{width:100%;padding:14px;border-radius:10px;border:none;background:var(--accent);color:#082f49;font-size:1.2rem;font-weight:800;cursor:pointer}
+  #feed{display:flex;flex-direction:column;gap:12px}
+  .post{background:var(--card);border-radius:12px;padding:16px;border-left:5px solid var(--accent);animation:fade .3s}
+  .post .t{font-size:1.05rem;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .post .m{color:var(--muted);font-size:.8rem;margin-top:6px}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:1rem}
+  #clearBtn{margin-top:14px;padding:8px 16px;border-radius:8px;border:1px solid #f87171;background:transparent;color:#f87171;cursor:pointer;font-size:.9rem}
+  #err{display:none;margin-top:14px;padding:10px;border-radius:8px;background:#7f1d1d;color:#fecaca;font-size:.85rem;white-space:pre-wrap;word-break:break-word}
+  .live-tag{display:inline-block;background:#22c55e;color:#052e16;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;animation:blink 1.5s infinite}
+  @keyframes blink{50%{opacity:.4}}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#22c55e;color:#052e16;padding:12px 22px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="qbar">
+    <h1>📋 討論題目 <span class="qno" id="qno">1</span><span class="live-tag" id="liveTag">LIVE</span></h1>
+    <div class="q" id="qText">載入中...</div>
+    <div id="err"></div>
+    <div class="tabs" id="tabs"><!-- 題目切換 --></div>
+  </div>
+
+  <div id="feed" class="empty">載入中...</div>
+
+  <div id="inputs" style="display:none">
+    <div class="hint">🔒 按「送出」文字即時上牆顯示</div>
+    <textarea id="txt" rows="2" placeholder="請輸入你的回應..."></textarea>
+    <button id="sendBtn">送出 ➤</button>
+  </div>
+
+  <button id="clearBtn" style="display:none">🗑 清空本題答案</button>
+</div>
+
+<div class="toast" id="toast">已送出 ✓</div>
+
+<script type="module">
+  const QUESTIONS = [
+    "你希望我們地方教會除了差傳以外，還有哪些是可以一起合作？",
+    "牧會的過程中，你覺得最辛苦的是什麼？",
+    "你的教會最需要代禱的是什麼？",
+    "你個人需要代禱的是什麼？"
+  ];
+  const SUB = new URLSearchParams(location.search).get("s") === "1";
+
+  const $ = id => document.getElementById(id);
+  const qText = $("qText"), qno = $("qno"), feed = $("feed"), tabs = $("tabs"),
+        inputs = $("inputs"), txt = $("txt"), sendBtn = $("sendBtn"),
+        clearBtn = $("clearBtn"), liveTag = $("liveTag"), toast = $("toast"),
+        errBox = $("err");
+
+  // 錯誤顯示助手：任何錯誤都印上螢幕，方便現場 debug
+  window.__showErr = function(label, e) {
+    errBox.style.display = "block";
+    errBox.textContent = label + ": " + (e && e.message ? e.message : e);
+    console.error(label, e);
+  };
+  window.addEventListener("error", e => window.__showErr("錯誤", e.message));
+  window.addEventListener("unhandledrejection", e => window.__showErr("錯誤(promise)", e.reason && e.reason.message || e.reason));
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, getDoc, getDocs, setDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  let db, activeQ = 1, unsub = null;
+  try {
+    db = getFirestore(initializeApp({ apiKey: "AIzaSyDhXcMZYOry8s3S3eRHfYkRQ6o9VU8c7dc", projectId: "linnan-de218" }));
+  } catch (e) { window.__showErr("Firebase 初始化失敗", e); }
+
+  // 題目切換按鈕
+  QUESTIONS.forEach((_, i) => {
+    const b = document.createElement("button");
+    b.textContent = "Q" + (i + 1);
+    b.onclick = () => setActive(i + 1);
+    tabs.appendChild(b);
+  });
+
+  // 無鑑權規則下 setDoc 需不存在才建；用 try/catch 忽略首次建立
+  async function ensureActive() {
+    if (!db) return;
+    try { const d = await getDoc(cfgRef()); if (!d.exists()) await setDoc(cfgRef(), { q: 1 }); } catch (e) {}
+  }
+  function cfgRef() { return doc(db, "config", "active"); }
+
+  function setActive(q) {
+    activeQ = q;
+    const idx = q - 1;
+    qno.textContent = q;
+    qText.textContent = QUESTIONS[idx] || "？";
+    [...tabs.children].forEach((b, i) => b.classList.toggle("on", i === idx));
+
+    // 手機模式顯示輸入區；第4題只顯示題目、口頭分享代禱(不打字)
+    if (SUB) {
+      inputs.style.display = (q === 4) ? "none" : "block";
+      liveTag.style.display = "none";
+    } else {
+      inputs.style.display = "none";
+      liveTag.style.display = "inline-block";
+    }
+
+    // 訂閱本題答案
+    unsub && unsub();
+    try {
+      const qPosts = query(collection(db, "posts"), where("q", "==", q));
+      unsub = onSnapshot(qPosts, snap => {
+        const items = [];
+        snap.forEach(d => items.push(d.data()));
+        items.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        render(items);
+      }, err => window.__showErr("讀取答案失敗", err));
+    } catch (e) { window.__showErr("訂閱失敗", e); }
+  }
+  let renderCnt = 0;
+  function render(items) {
+    renderCnt++;
+    if (!items.length) { feed.innerHTML = '<div class="empty">還沒有回應，等待大家輸入…</div>'; return; }
+    feed.innerHTML = "";
+    items.forEach(it => {
+      const d = document.createElement("div");
+      d.className = "post";
+      const now = new Date(it.ts || Date.now());
+      d.innerHTML = '<div class="t">' + esc(it.text) + '</div><div class="m">🕐 ' + now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) + '</div>';
+      feed.appendChild(d);
+    });
+  }
+  function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  // 初始載入：直接 render Q1，並訂閱 config 追蹤切題
+  try {
+    setActive(1);
+    onSnapshot(cfgRef(), snap => {
+      let q = snap.exists() ? snap.data().q : 1;
+      if (!q) q = 1;
+      setActive(q);
+    }, err => window.__showErr("訂閱題目失敗", err));
+    ensureActive();
+  } catch (e) { window.__showErr("初始化失敗", e); }
+
+  // 送出
+  sendBtn.onclick = async () => {
+    try {
+      const text = txt.value.trim();
+      if (!text) return;
+      await addDoc(collection(db, "posts"), { q: activeQ, text: text, ts: Date.now() });
+      txt.value = "";
+      toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 1500);
+    } catch (e) { window.__showErr("送出失敗", e); }
+  };
+  txt.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendBtn.click(); } });
+
+  // 主控：清空本題
+  clearBtn.onclick = async () => {
+    if (!confirm("確定清除第 " + activeQ + " 題所有答案？")) return;
+    try {
+      const qPosts = query(collection(db, "posts"), where("q", "==", activeQ));
+      const snap = await getDocs(qPosts);
+      snap.forEach(async d => { await deleteDoc(d.ref); });
+    } catch (e) { window.__showErr("清除失敗", e); }
+  };
+</script>
+</body>
+</html>
