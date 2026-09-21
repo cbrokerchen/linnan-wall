@@ -35,6 +35,7 @@
   .post{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--gold);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);animation:fade .35s ease}
   .post .t{font-size:1.15rem;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
   .post .m{color:var(--muted);font-size:.78rem;margin-top:10px}
+  .post .v{float:right;margin:0 0 6px 12px;background:linear-gradient(135deg,var(--gold),var(--gold-deep));color:#fff;border-radius:999px;padding:5px 14px;font-size:.9rem;font-weight:800;letter-spacing:.5px}
   @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
   .empty-note{font-size:.9rem;margin-top:12px;color:var(--muted)}
 
@@ -82,7 +83,7 @@
 </div>
 
 <div id="inputs" style="display:none">
-  <div class="ph">🔒 輸入你的回應後按送出，文字即時顯示在大螢幕</div>
+  <div class="ph">🔒 輸入你的回應後按送出，文字即時顯示在大螢幕（同樣的答案會累計票數）</div>
   <textarea id="txt" rows="4" placeholder="請輸入你的回應..."></textarea>
   <button id="sendBtn">送出 ➤</button>
 </div>
@@ -123,9 +124,9 @@
   window.addEventListener("unhandledrejection", e => window.__showErr("錯誤(promise)", e.reason && e.reason.message || e.reason));
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, addDoc, onSnapshot, getDoc, getDocs, setDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, getDoc, getDocs, setDoc, deleteDoc, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  let db, activeQ = 1, unsub = null;
+  let db, activeQ = 1, unsub = null, refMap = {};   // refMap: 正規化文字 → 既有 doc ref（同文累積票數用）
   try {
     db = getFirestore(initializeApp({ apiKey: "AIzaSyDhXcMZYOry8s3S3eRHfYkRQ6o9VU8c7dc", projectId: "linnan-de218" }));
   } catch (e) { window.__showErr("Firebase 初始化失敗", e); }
@@ -170,12 +171,17 @@
     }
 
     unsub && unsub();
+    refMap = {};
     try {
       const qPosts = query(collection(db, "posts"), where("q", "==", q));
       unsub = onSnapshot(qPosts, snap => {
         const items = [];
-        snap.forEach(d => items.push(d.data()));
-        items.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        snap.forEach(d => {
+          const v = d.data();
+          const k = norm(v.text);
+          if (k && !refMap[k]) refMap[k] = { ref: d.ref, count: v.count || 1 };   // 舊重複：票數集中在第一筆
+          items.push(v);
+        });
         render(items, q);
       }, err => window.__showErr("讀取答案失敗", err));
     } catch (e) { window.__showErr("訂閱失敗", e); }
@@ -194,14 +200,26 @@
       return;
     }
     feed.innerHTML = "";
+    // 同文合併累計票數（舊資料沒有 count 視為 1），依票數高→低，同票數早送出者在前
+    const agg = new Map();
     items.forEach(it => {
+      const k = norm(it.text);
+      if (!k) return;
+      const a = agg.get(k);
+      if (a) { a.count += (it.count || 1); if (it.ts && it.ts < a.ts) a.ts = it.ts; }
+      else agg.set(k, { text: it.text, count: it.count || 1, ts: it.ts || 0 });
+    });
+    const list = [...agg.values()].sort((a, b) => b.count - a.count || a.ts - b.ts);
+    list.forEach(it => {
       const d = document.createElement("div");
       d.className = "post";
       const now = new Date(it.ts || Date.now());
-      d.innerHTML = '<div class="t">' + esc(it.text) + '</div><div class="m">🕐 ' + now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) + '</div>';
+      d.innerHTML = (it.count > 1 ? '<div class="v">' + it.count + ' 票</div>' : "")
+        + '<div class="t">' + esc(it.text) + '</div><div class="m">🕐 ' + now.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) + '</div>';
       feed.appendChild(d);
     });
   }
+  function norm(s) { return (s || "").trim().replace(/\s+/g, " ").toLowerCase(); }
   function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
   try {
@@ -218,8 +236,13 @@
     try {
       const text = txt.value.trim();
       if (!text) return;
-      await addDoc(collection(db, "posts"), { q: activeQ, text: text, ts: Date.now() });
+      const hit = refMap[norm(text)];
+      // ponytail: 讀快照現值再設，不用 increment — 舊資料沒 count 欄位時 increment 會當 0 少算一票
+      // 同文同時送出可能少算一票，討論牆可接受
+      if (hit) await updateDoc(hit.ref, { count: hit.count + 1 });   // 同文：票數 +1
+      else await addDoc(collection(db, "posts"), { q: activeQ, text: text, ts: Date.now(), count: 1 });
       txt.value = "";
+      toast.textContent = hit ? "已累計票數 ✓" : "已送出 ✓";
       toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 1500);
     } catch (e) { window.__showErr("送出失敗", e); }
   };
