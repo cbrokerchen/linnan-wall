@@ -9,19 +9,17 @@
 <body>
   <main class="shell">
     <div class="brand">LINNAN ADMIN</div>
-    <div class="toolbar"><div><h1>活動管理</h1><p class="lead">建立活動、匯入名單並控制投票階段。</p></div><button id="loginBtn">Google 管理員登入</button><button id="logoutBtn" class="secondary hidden">登出</button></div>
+    <div class="toolbar"><div><h1>地方同工會管理</h1><p class="lead">管理本次活動的名單、簽到與投票階段。</p></div><button id="loginBtn">Google 管理員登入</button><button id="logoutBtn" class="secondary hidden">登出</button></div>
     <div id="authMessage" class="notice">請使用授權的管理員 Google 帳號登入。</div>
 
     <section id="adminPanel" class="hidden">
       <section class="card stack">
         <h2>活動設定</h2>
-        <label>活動代碼<input id="eventId" maxlength="48" placeholder="annual-meeting-2026"></label>
-        <button id="loadEvent" class="secondary" type="button">載入既有活動設定</button>
         <label>活動名稱<input id="title" maxlength="100" placeholder="年度會員大會"></label>
         <label>投票題目<input id="electionTitle" maxlength="150" placeholder="理事選舉"></label>
         <label>目前階段<select id="status"><option value="checkin">簽到中</option><option value="voting">投票中</option><option value="closed">已截止</option><option value="results">公布結果</option></select></label>
         <button id="saveEvent">儲存活動設定</button>
-        <div class="meta">參加者網址：<code id="eventUrl">請先輸入活動代碼</code></div>
+        <div class="meta">參加者網址：<code id="eventUrl">https://linnan-wall.web.app/event.html</code></div>
       </section>
 
       <section class="card stack">
@@ -41,12 +39,12 @@
       <section class="card stack">
         <h2>工作人員代簽</h2>
         <p class="meta">適用於沒有智慧型手機或需要協助的參加者。請核對姓名與教會後再按代簽。</p>
-        <div id="participantRoster" class="list"><div class="notice">選擇活動後顯示名單。</div></div>
+        <div id="participantRoster" class="list"><div class="notice">名單載入中。</div></div>
       </section>
 
       <section class="card stack">
         <h2>即時狀態</h2>
-        <div id="stats" class="notice">選擇活動後顯示統計。</div>
+        <div id="stats" class="notice">統計載入中。</div>
         <div id="adminResults"></div>
       </section>
     </section>

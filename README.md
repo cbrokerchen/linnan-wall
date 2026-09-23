@@ -5,8 +5,8 @@ Firebase Hosting site for the existing discussion wall and the new event check-i
 ## Pages
 
 - `/` — existing discussion wall
-- `/event.html?event=<event-id>` — participant check-in and voting
-- `/admin.html` — event setup, participant import, candidates, status, and results
+- `/event.html` — participant check-in and voting for the single configured event
+- `/admin.html` — setup, participant import, candidates, status, and results for the same event
 
 ## Event flow
 

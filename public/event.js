@@ -12,7 +12,7 @@ const claimParticipant = httpsCallable(functions, "claimParticipant");
 const getCheckInOptions = httpsCallable(functions, "getCheckInOptions");
 const castVote = httpsCallable(functions, "castVote");
 const $ = (id) => document.getElementById(id);
-let currentEventId = new URLSearchParams(location.search).get("event") || localStorage.getItem("eventId") || "";
+const currentEventId = "registration-test";
 let participantId = localStorage.getItem("participantId") || "";
 let eventData = null;
 let candidates = [];
@@ -20,27 +20,23 @@ let unsubscribers = [];
 let unsubscribeTallies = null;
 let sharedDeviceMode = false;
 
-$("eventId").value = currentEventId;
 onAuthStateChanged(auth, async (user) => {
   if (user && currentEventId && participantId) await resumeSession(user);
 });
 
 $("loadEventBtn").onclick = loadCheckInOptions;
-if (currentEventId) loadCheckInOptions();
+loadCheckInOptions();
 
 $("joinBtn").onclick = async () => {
-  const eventId = $("eventId").value.trim().toLowerCase();
   const name = $("participantInputName").value.trim();
   const church = $("church").value;
-  if (!eventId || !name || !church) return showMessage("請輸入姓名並選擇教會。", true);
+  if (!name || !church) return showMessage("請輸入姓名並選擇教會。", true);
   setBusy($("joinBtn"), true);
   try {
     if (!auth.currentUser) await signInAnonymously(auth);
-    const response = await claimParticipant({ eventId, name, church });
-    currentEventId = eventId;
+    const response = await claimParticipant({ eventId: currentEventId, name, church });
     participantId = response.data.participantId;
     sharedDeviceMode = $("sharedDevice").checked;
-    localStorage.setItem("eventId", eventId);
     localStorage.setItem("participantId", participantId);
     sessionStorage.setItem("sharedDeviceMode", sharedDeviceMode ? "1" : "0");
     await auth.currentUser.getIdToken(true);
@@ -80,14 +76,10 @@ $("writeInName").addEventListener("input", () => {
 });
 
 async function loadCheckInOptions() {
-  const eventId = $("eventId").value.trim().toLowerCase();
-  if (!eventId) return showMessage("請先輸入活動代碼。", true);
   setBusy($("loadEventBtn"), true);
   try {
     if (!auth.currentUser) await signInAnonymously(auth);
-    const response = await getCheckInOptions({ eventId });
-    currentEventId = eventId;
-    localStorage.setItem("eventId", eventId);
+    const response = await getCheckInOptions({ eventId: currentEventId });
     $("pageTitle").textContent = response.data.title;
     $("church").innerHTML = '<option value="">請選擇教會</option>' + response.data.churches.map((church) => `<option value="${escapeHtml(church)}">${escapeHtml(church)}</option>`).join("");
     $("identityFields").classList.remove("hidden");

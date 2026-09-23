@@ -10,9 +10,9 @@ const db = getFirestore(app);
 const functions = getFunctions(app, functionsRegion);
 const staffCheckIn = httpsCallable(functions, "staffCheckIn");
 const $ = (id) => document.getElementById(id);
+const EVENT_ID = "registration-test";
 let unsubscribers = [];
-const requestedEventId = new URLSearchParams(location.search).get("event");
-let requestedEventLoaded = false;
+let adminInitialized = false;
 
 $("loginBtn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(showError);
 $("logoutBtn").onclick = () => signOut(auth);
@@ -22,46 +22,37 @@ onAuthStateChanged(auth, async (user) => {
   $("logoutBtn").classList.toggle("hidden", !user);
   $("adminPanel").classList.toggle("hidden", !authorized);
   $("authMessage").textContent = authorized ? `已登入：${user.email}` : user ? "此帳號沒有管理權限。" : "請使用授權的管理員 Google 帳號登入。";
-  if (!authorized) unsubscribers.forEach((unsubscribe) => unsubscribe());
-  if (authorized && requestedEventId && !requestedEventLoaded) {
-    requestedEventLoaded = true;
-    $("eventId").value = requestedEventId;
-    $("eventId").dispatchEvent(new Event("input"));
-    await loadEventSettings(normalizedEventId());
+  if (!authorized) {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+    unsubscribers = [];
+    adminInitialized = false;
+  }
+  if (authorized && !adminInitialized) {
+    adminInitialized = true;
+    $("eventUrl").textContent = `${location.origin}/event.html`;
+    subscribeStats(EVENT_ID);
+    await loadEventSettings();
   }
 });
 
-$("eventId").addEventListener("input", () => {
-  const eventId = normalizedEventId();
-  $("eventUrl").textContent = eventId ? `${location.origin}/event.html?event=${encodeURIComponent(eventId)}` : "請先輸入活動代碼";
-  subscribeStats(eventId);
-});
-
-$("eventId").addEventListener("change", () => loadEventSettings());
-$("loadEvent").onclick = () => loadEventSettings();
-
-async function loadEventSettings(eventId = normalizedEventId()) {
-  if (!eventId) return showError(new Error("請先輸入活動代碼。"));
-  setBusy($("loadEvent"), true);
+async function loadEventSettings() {
   try {
-    const snapshot = await getDoc(doc(db, "events", eventId));
-    if (!snapshot.exists()) throw new Error("找不到這個活動；若要建立新活動，請填妥設定後按儲存。");
+    const snapshot = await getDoc(doc(db, "events", EVENT_ID));
+    if (!snapshot.exists()) throw new Error("找不到活動設定。請填妥活動名稱及投票題目後儲存。");
     const data = snapshot.data();
     $("title").value = data.title || "";
     $("electionTitle").value = data.electionTitle || "";
     $("status").value = data.status || "checkin";
     showMessage(`已載入活動設定：${data.title}`, false);
   } catch (error) { showError(error); }
-  finally { setBusy($("loadEvent"), false); }
 }
 
 $("saveEvent").onclick = async () => {
-  const eventId = normalizedEventId();
   const title = $("title").value.trim();
   const electionTitle = $("electionTitle").value.trim();
-  if (!eventId || !title || !electionTitle) return showError(new Error("請完整填寫活動代碼、名稱及投票題目。"));
+  if (!title || !electionTitle) return showError(new Error("請完整填寫活動名稱及投票題目。"));
   try {
-    const eventRef = doc(db, "events", eventId);
+    const eventRef = doc(db, "events", EVENT_ID);
     const existing = await getDoc(eventRef);
     const data = { title, electionTitle, status: $("status").value, updatedAt: serverTimestamp() };
     if (!existing.exists()) data.createdAt = serverTimestamp();
@@ -71,9 +62,9 @@ $("saveEvent").onclick = async () => {
 };
 
 $("saveCandidates").onclick = async () => {
-  const eventId = normalizedEventId();
+  const eventId = EVENT_ID;
   const names = $("candidates").value.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-  if (!eventId || !names.length) return showError(new Error("請先輸入活動代碼及候選人。"));
+  if (!names.length) return showError(new Error("請先輸入候選人。"));
   try {
     const existing = await getDocs(collection(db, "events", eventId, "candidates"));
     const desired = [];
@@ -93,9 +84,9 @@ $("saveCandidates").onclick = async () => {
 };
 
 $("importParticipants").onclick = async () => {
-  const eventId = normalizedEventId();
+  const eventId = EVENT_ID;
   const rows = $("participants").value.split(/\r?\n/).map((row) => row.trim()).filter(Boolean);
-  if (!eventId || !rows.length) return showError(new Error("請先輸入活動代碼及參加者名單。"));
+  if (!rows.length) return showError(new Error("請先輸入參加者名單。"));
   try {
     const parsed = [];
     for (const row of rows) {
@@ -145,8 +136,8 @@ function subscribeStats(eventId) {
 $("participantRoster").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-staff-checkin]");
   if (!button) return;
-  const eventId = normalizedEventId();
-  if (!eventId || !confirm("已核對姓名與教會，確定由工作人員代為簽到嗎？")) return;
+  const eventId = EVENT_ID;
+  if (!confirm("已核對姓名與教會，確定由工作人員代為簽到嗎？")) return;
   setBusy(button, true);
   try {
     const response = await staffCheckIn({ eventId, participantId: button.dataset.staffCheckin });
@@ -155,7 +146,6 @@ $("participantRoster").addEventListener("click", async (event) => {
   finally { setBusy(button, false); }
 });
 
-function normalizedEventId() { return $("eventId").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, ""); }
 async function sha256(value) { const bytes = new TextEncoder().encode(value); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 function normalizedIdentityText(value) { return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " "); }
 async function participantLookupHash(name, church) { return sha256(`${normalizedIdentityText(name).toLowerCase()}\n${normalizedIdentityText(church).toLowerCase()}`); }
