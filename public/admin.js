@@ -11,6 +11,8 @@ const functions = getFunctions(app, functionsRegion);
 const staffCheckIn = httpsCallable(functions, "staffCheckIn");
 const $ = (id) => document.getElementById(id);
 let unsubscribers = [];
+const requestedEventId = new URLSearchParams(location.search).get("event");
+let requestedEventLoaded = false;
 
 $("loginBtn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(showError);
 $("logoutBtn").onclick = () => signOut(auth);
@@ -21,6 +23,12 @@ onAuthStateChanged(auth, async (user) => {
   $("adminPanel").classList.toggle("hidden", !authorized);
   $("authMessage").textContent = authorized ? `已登入：${user.email}` : user ? "此帳號沒有管理權限。" : "請使用授權的管理員 Google 帳號登入。";
   if (!authorized) unsubscribers.forEach((unsubscribe) => unsubscribe());
+  if (authorized && requestedEventId && !requestedEventLoaded) {
+    requestedEventLoaded = true;
+    $("eventId").value = requestedEventId;
+    $("eventId").dispatchEvent(new Event("input"));
+    await loadEventSettings(normalizedEventId());
+  }
 });
 
 $("eventId").addEventListener("input", () => {
@@ -28,6 +36,24 @@ $("eventId").addEventListener("input", () => {
   $("eventUrl").textContent = eventId ? `${location.origin}/event.html?event=${encodeURIComponent(eventId)}` : "請先輸入活動代碼";
   subscribeStats(eventId);
 });
+
+$("eventId").addEventListener("change", () => loadEventSettings());
+$("loadEvent").onclick = () => loadEventSettings();
+
+async function loadEventSettings(eventId = normalizedEventId()) {
+  if (!eventId) return showError(new Error("請先輸入活動代碼。"));
+  setBusy($("loadEvent"), true);
+  try {
+    const snapshot = await getDoc(doc(db, "events", eventId));
+    if (!snapshot.exists()) throw new Error("找不到這個活動；若要建立新活動，請填妥設定後按儲存。");
+    const data = snapshot.data();
+    $("title").value = data.title || "";
+    $("electionTitle").value = data.electionTitle || "";
+    $("status").value = data.status || "checkin";
+    showMessage(`已載入活動設定：${data.title}`, false);
+  } catch (error) { showError(error); }
+  finally { setBusy($("loadEvent"), false); }
+}
 
 $("saveEvent").onclick = async () => {
   const eventId = normalizedEventId();
