@@ -51,7 +51,7 @@ $("saveCandidates").onclick = async () => {
   try {
     const existing = await getDocs(collection(db, "events", eventId, "candidates"));
     const desired = [];
-    for (const [order, name] of names.entries()) desired.push({ id: (await sha256(name)).slice(0, 32), name, order });
+    for (const [order, name] of names.entries()) desired.push({ id: await candidateIdFromName(name), name, order });
     const desiredIds = new Set(desired.map((candidate) => candidate.id));
     const batch = writeBatch(db);
     existing.forEach((item) => { if (!desiredIds.has(item.id)) batch.delete(item.ref); });
@@ -133,6 +133,7 @@ function normalizedEventId() { return $("eventId").value.trim().toLowerCase().re
 async function sha256(value) { const bytes = new TextEncoder().encode(value); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 function normalizedIdentityText(value) { return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " "); }
 async function participantLookupHash(name, church) { return sha256(`${normalizedIdentityText(name).toLowerCase()}\n${normalizedIdentityText(church).toLowerCase()}`); }
+async function candidateIdFromName(name) { return (await sha256(normalizedIdentityText(name).toLowerCase())).slice(0, 32); }
 function setBusy(button, busy) { button.disabled = busy; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function showError(error) { showMessage(error?.message || "操作失敗。", true); }

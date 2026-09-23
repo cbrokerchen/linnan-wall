@@ -34,6 +34,8 @@ button:disabled { opacity: .5; cursor: wait; }
 .choice { display: flex; align-items: center; gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
 .choice input { width: auto; }
 .choice span { font-weight: 700; }
+.write-in { padding-top: 14px; border-top: 1px solid var(--line); }
+.write-in .meta { margin: 7px 0 0; }
 .check-row { display: flex; align-items: center; gap: 9px; }
 .check-row input { width: auto; }
 .meta { color: var(--muted); font-size: .88rem; }

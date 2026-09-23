@@ -55,11 +55,13 @@ $("joinBtn").onclick = async () => {
 $("voteForm").onsubmit = async (event) => {
   event.preventDefault();
   const choice = document.querySelector('input[name="candidate"]:checked');
-  if (!choice) return showMessage("請先選擇一位候選人。", true);
-  if (!confirm("送出後不能修改，確定送出這張選票嗎？")) return;
+  const writeInName = $("writeInName").value.trim();
+  if (!choice && !writeInName) return showMessage("請選擇一位候選人，或輸入候選人姓名。", true);
+  const choiceDescription = writeInName || choice.closest("label")?.innerText.trim() || "所選候選人";
+  if (!confirm(`送出後不能修改，確定投給「${choiceDescription}」嗎？`)) return;
   setBusy($("voteBtn"), true);
   try {
-    await castVote({ eventId: currentEventId, candidateId: choice.value });
+    await castVote(writeInName ? { eventId: currentEventId, writeInName } : { eventId: currentEventId, candidateId: choice.value });
     $("voteForm").classList.add("hidden");
     $("voted").classList.remove("hidden");
     showMessage("投票完成。", false);
@@ -72,6 +74,10 @@ $("voteForm").onsubmit = async (event) => {
 };
 
 $("nextParticipantBtn").onclick = () => resetForNextParticipant();
+$("candidateList").addEventListener("change", () => { $("writeInName").value = ""; });
+$("writeInName").addEventListener("input", () => {
+  document.querySelectorAll('input[name="candidate"]').forEach((input) => { input.checked = false; });
+});
 
 async function loadCheckInOptions() {
   const eventId = $("eventId").value.trim().toLowerCase();
@@ -157,7 +163,7 @@ function startListeners(name, hasVoted) {
 
   const candidateQuery = query(collection(db, "events", currentEventId, "candidates"), where("active", "==", true));
   unsubscribers.push(onSnapshot(candidateQuery, (snapshot) => {
-    candidates = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => a.order - b.order);
+    candidates = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "zh-Hant"));
     renderCandidates();
   }));
 

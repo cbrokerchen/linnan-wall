@@ -83,10 +83,14 @@ exports.staffCheckIn = onCall({ region: REGION, enforceAppCheck: false }, async 
 exports.castVote = onCall({ region: REGION, enforceAppCheck: false }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "請先登入。");
   const eventId = normalizedEventId(request.data?.eventId);
-  const candidateId = String(request.data?.candidateId || "");
-  if (!EVENT_ID_PATTERN.test(eventId) || !candidateId || candidateId.length > 128) throw new HttpsError("invalid-argument", "選票格式不正確。");
+  const requestedCandidateId = String(request.data?.candidateId || "");
+  const writeInName = normalizedIdentityText(request.data?.writeInName);
+  const hasListedCandidate = /^[a-f0-9]{32}$/.test(requestedCandidateId);
+  const hasWriteInCandidate = isValidIdentityText(writeInName, 80);
+  if (!EVENT_ID_PATTERN.test(eventId) || hasListedCandidate === hasWriteInCandidate) throw new HttpsError("invalid-argument", "請選擇一位候選人，或輸入一位自填候選人。");
   if (request.auth.token.eventId !== eventId || typeof request.auth.token.participantId !== "string") throw new HttpsError("permission-denied", "簽到憑證不符。");
 
+  const candidateId = hasWriteInCandidate ? candidateIdFromName(writeInName) : requestedCandidateId;
   const participantId = request.auth.token.participantId;
   const eventRef = db.doc(`events/${eventId}`);
   const participantRef = eventRef.collection("participants").doc(participantId);
@@ -98,13 +102,19 @@ exports.castVote = onCall({ region: REGION, enforceAppCheck: false }, async (req
     const [eventSnapshot, participantSnapshot, candidateSnapshot, receiptSnapshot] = await Promise.all([
       transaction.get(eventRef), transaction.get(participantRef), transaction.get(candidateRef), transaction.get(receiptRef)
     ]);
+    const candidate = candidateSnapshot.exists ? candidateSnapshot.data() : null;
     validateVoteState({
       event: eventSnapshot.exists ? eventSnapshot.data() : null,
       participant: participantSnapshot.exists ? participantSnapshot.data() : null,
-      candidate: candidateSnapshot.exists ? candidateSnapshot.data() : null,
-      receiptExists: receiptSnapshot.exists
+      candidate,
+      receiptExists: receiptSnapshot.exists,
+      allowCandidateCreate: hasWriteInCandidate
     });
+    if (candidate && hasWriteInCandidate && normalizedIdentityText(candidate.name).toLowerCase() !== writeInName.toLowerCase()) {
+      throw new HttpsError("aborted", "候選人資料衝突，請重新整理後再試。");
+    }
 
+    if (!candidateSnapshot.exists) transaction.create(candidateRef, { name: writeInName, order: 500, active: true, createdAt: FieldValue.serverTimestamp() });
     transaction.set(receiptRef, { used: true, votedAt: FieldValue.serverTimestamp() });
     transaction.set(tallyRef, { count: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     transaction.update(participantRef, { hasVoted: true, votedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
@@ -117,6 +127,7 @@ function normalizedIdentityText(value) { return String(value || "").normalize("N
 function isValidIdentityText(value, maxLength) { return value.length >= 1 && value.length <= maxLength; }
 function sha256(value) { return createHash("sha256").update(value).digest("hex"); }
 function participantLookupHash(name, church) { return sha256(`${normalizedIdentityText(name).toLowerCase()}\n${normalizedIdentityText(church).toLowerCase()}`); }
+function candidateIdFromName(name) { return sha256(normalizedIdentityText(name).toLowerCase()).slice(0, 32); }
 function isBootstrapAdminRequest(request) {
   return request.auth?.token?.email === "cbroker@gmail.com" && request.auth.token.email_verified === true;
 }
@@ -127,12 +138,12 @@ function validateClaimState(event, participant) {
     throw new HttpsError("failed-precondition", "一般簽到已截止；若需要公用裝置，請先洽工作人員代簽。");
   }
 }
-function validateVoteState({ event, participant, candidate, receiptExists }) {
+function validateVoteState({ event, participant, candidate, receiptExists, allowCandidateCreate = false }) {
   if (!event || event.status !== "voting") throw new HttpsError("failed-precondition", "目前未開放投票。");
   if (!participant) throw new HttpsError("permission-denied", "找不到參加者資格。");
   if (!participant.eligible || !participant.checkedInAt) throw new HttpsError("permission-denied", "尚未完成簽到或沒有投票資格。");
   if (participant.hasVoted || receiptExists) throw new HttpsError("already-exists", "你已經投過票。");
-  if (!candidate || candidate.active !== true) throw new HttpsError("invalid-argument", "候選人無效。");
+  if ((!candidate && !allowCandidateCreate) || (candidate && candidate.active !== true)) throw new HttpsError("invalid-argument", "候選人無效。");
 }
 
-exports._test = { normalizedEventId, normalizedIdentityText, participantLookupHash, sha256, validateClaimState, validateVoteState, EVENT_ID_PATTERN };
+exports._test = { normalizedEventId, normalizedIdentityText, participantLookupHash, candidateIdFromName, sha256, validateClaimState, validateVoteState, EVENT_ID_PATTERN };

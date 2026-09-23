@@ -31,6 +31,18 @@ test("rejects voting outside the open window and inactive candidates", () => {
   assert.throws(() => _test.validateVoteState({ event: { status: "voting" }, participant, candidate: { active: false }, receiptExists: false }), /候選人無效/);
 });
 
+test("normalizes self-entered candidate names to one deterministic id", () => {
+  assert.equal(_test.candidateIdFromName(" 王　小明 "), _test.candidateIdFromName("王 小明"));
+  assert.equal(_test.candidateIdFromName("PAUL"), _test.candidateIdFromName("paul"));
+  assert.equal(_test.candidateIdFromName("王小明").length, 32);
+});
+
+test("allows a new self-entered candidate but still rejects an inactive existing candidate", () => {
+  const state = { event: { status: "voting" }, participant: { eligible: true, checkedInAt: new Date(), hasVoted: false }, receiptExists: false };
+  assert.doesNotThrow(() => _test.validateVoteState({ ...state, candidate: null, allowCandidateCreate: true }));
+  assert.throws(() => _test.validateVoteState({ ...state, candidate: { active: false }, allowCandidateCreate: true }), /候選人無效/);
+});
+
 test("permits shared-device claim during voting only after staff check-in", () => {
   assert.doesNotThrow(() => _test.validateClaimState({ status: "voting" }, { eligible: true, checkedInAt: new Date() }));
   assert.throws(() => _test.validateClaimState({ status: "voting" }, { eligible: true, checkedInAt: null }), /一般簽到已截止/);

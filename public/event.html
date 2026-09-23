@@ -30,6 +30,12 @@
       <form id="voteForm" class="hidden">
         <h2 id="electionTitle">投票</h2>
         <div class="choices" id="candidateList"></div>
+        <div class="write-in">
+          <label>找不到想選的人？可自行輸入候選人姓名
+            <input id="writeInName" maxlength="80" autocomplete="off" placeholder="輸入姓名後，這一票會投給此人">
+          </label>
+          <p class="meta">若輸入的姓名已存在，系統會自動合併到同一位候選人。</p>
+        </div>
         <button type="submit" id="voteBtn">確認送出選票</button>
       </form>
       <div id="voted" class="notice ok hidden">你的選票已送出。本系統不保存你選擇的候選人與身分對照。</div>

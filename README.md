@@ -14,7 +14,7 @@ Firebase Hosting site for the existing discussion wall and the new event check-i
 2. Create an event in `checkin` status, add candidates, and import `name,church` rows.
 3. Participants sign in anonymously and claim their record using their name and church. Exact duplicate name/church rows are rejected during import.
 4. Staff can check in a participant from the admin roster. A participant without a smartphone can then vote personally on a shared device; shared-device mode signs out and clears their participant session after the vote.
-5. Change the event to `voting` to accept votes.
+5. Change the event to `voting` to accept votes. Participants may select a listed candidate or enter a missing candidate's name; creation and voting happen atomically and no creator identity is stored.
 6. Change it to `closed` to stop voting, then `results` to publish aggregate totals.
 
 Name/church lookup keys are normalized and stored as SHA-256 hashes alongside the administrator-only roster fields. Votes are processed by a callable Cloud Function transaction. Firestore stores a participant's used receipt and aggregate candidate tallies in separate collections; it does not store a participant-to-candidate mapping.
