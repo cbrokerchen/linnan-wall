@@ -34,11 +34,15 @@ button:disabled { opacity: .5; cursor: wait; }
 .choice { display: flex; align-items: center; gap: 12px; padding: 15px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
 .choice input { width: auto; }
 .choice span { font-weight: 700; }
+.check-row { display: flex; align-items: center; gap: 9px; }
+.check-row input { width: auto; }
 .meta { color: var(--muted); font-size: .88rem; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pill { display: inline-flex; padding: 5px 10px; border-radius: 999px; background: #eee5d7; color: var(--gold); font-weight: 800; font-size: .78rem; }
 .list { display: grid; gap: 8px; margin-top: 12px; }
 .list-item { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.participant-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.participant-row small { display: block; color: var(--muted); margin-top: 4px; }
 .result-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-top: 12px; }
 .bar { height: 9px; border-radius: 99px; background: #eee5d7; overflow: hidden; margin-top: 6px; }
 .bar > i { display: block; height: 100%; background: var(--green); }

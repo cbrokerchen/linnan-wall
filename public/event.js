@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { collection, doc, getFirestore, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { firebaseConfig, functionsRegion } from "./firebase-config.js";
@@ -9,6 +9,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, functionsRegion);
 const claimParticipant = httpsCallable(functions, "claimParticipant");
+const getCheckInOptions = httpsCallable(functions, "getCheckInOptions");
 const castVote = httpsCallable(functions, "castVote");
 const $ = (id) => document.getElementById(id);
 let currentEventId = localStorage.getItem("eventId") || new URLSearchParams(location.search).get("event") || "";
@@ -17,25 +18,31 @@ let eventData = null;
 let candidates = [];
 let unsubscribers = [];
 let unsubscribeTallies = null;
+let sharedDeviceMode = false;
 
 $("eventId").value = currentEventId;
 onAuthStateChanged(auth, async (user) => {
-  if (!user) await signInAnonymously(auth);
-  else if (currentEventId && participantId) await resumeSession(user);
+  if (user && currentEventId && participantId) await resumeSession(user);
 });
+
+$("loadEventBtn").onclick = loadCheckInOptions;
+if (currentEventId) loadCheckInOptions();
 
 $("joinBtn").onclick = async () => {
   const eventId = $("eventId").value.trim().toLowerCase();
-  const accessCode = $("accessCode").value.trim();
-  if (!eventId || !accessCode) return showMessage("請輸入活動代碼與個人代碼。", true);
+  const name = $("participantInputName").value.trim();
+  const church = $("church").value;
+  if (!eventId || !name || !church) return showMessage("請輸入姓名並選擇教會。", true);
   setBusy($("joinBtn"), true);
   try {
     if (!auth.currentUser) await signInAnonymously(auth);
-    const response = await claimParticipant({ eventId, accessCode });
+    const response = await claimParticipant({ eventId, name, church });
     currentEventId = eventId;
     participantId = response.data.participantId;
+    sharedDeviceMode = $("sharedDevice").checked;
     localStorage.setItem("eventId", eventId);
     localStorage.setItem("participantId", participantId);
+    sessionStorage.setItem("sharedDeviceMode", sharedDeviceMode ? "1" : "0");
     await auth.currentUser.getIdToken(true);
     startListeners(response.data.name, response.data.hasVoted);
   } catch (error) {
@@ -56,6 +63,7 @@ $("voteForm").onsubmit = async (event) => {
     $("voteForm").classList.add("hidden");
     $("voted").classList.remove("hidden");
     showMessage("投票完成。", false);
+    if (sharedDeviceMode) await clearSharedDeviceSession();
   } catch (error) {
     showMessage(readableError(error), true);
   } finally {
@@ -63,14 +71,60 @@ $("voteForm").onsubmit = async (event) => {
   }
 };
 
+$("nextParticipantBtn").onclick = () => resetForNextParticipant();
+
+async function loadCheckInOptions() {
+  const eventId = $("eventId").value.trim().toLowerCase();
+  if (!eventId) return showMessage("請先輸入活動代碼。", true);
+  setBusy($("loadEventBtn"), true);
+  try {
+    if (!auth.currentUser) await signInAnonymously(auth);
+    const response = await getCheckInOptions({ eventId });
+    currentEventId = eventId;
+    localStorage.setItem("eventId", eventId);
+    $("pageTitle").textContent = response.data.title;
+    $("church").innerHTML = '<option value="">請選擇教會</option>' + response.data.churches.map((church) => `<option value="${escapeHtml(church)}">${escapeHtml(church)}</option>`).join("");
+    $("identityFields").classList.remove("hidden");
+    showMessage(`已載入 ${response.data.churches.length} 個教會選項。`, false);
+  } catch (error) { showMessage(readableError(error), true); }
+  finally { setBusy($("loadEventBtn"), false); }
+}
+
 async function resumeSession(user) {
   try {
     const token = await user.getIdTokenResult();
     if (token.claims.eventId !== currentEventId || token.claims.participantId !== participantId) return;
+    sharedDeviceMode = sessionStorage.getItem("sharedDeviceMode") === "1";
     startListeners("", false);
   } catch (error) {
     showMessage(readableError(error), true);
   }
+}
+
+async function clearSharedDeviceSession() {
+  localStorage.removeItem("participantId");
+  sessionStorage.removeItem("sharedDeviceMode");
+  participantId = "";
+  unsubscribers.forEach((unsubscribe) => unsubscribe());
+  unsubscribers = [];
+  if (unsubscribeTallies) unsubscribeTallies();
+  unsubscribeTallies = null;
+  await signOut(auth);
+  $("nextParticipantBtn").classList.remove("hidden");
+}
+
+function resetForNextParticipant() {
+  sharedDeviceMode = false;
+  eventData = null;
+  candidates = [];
+  $("participantInputName").value = "";
+  $("church").value = "";
+  $("sharedDevice").checked = true;
+  $("statusCard").classList.add("hidden");
+  $("joinCard").classList.remove("hidden");
+  $("nextParticipantBtn").classList.add("hidden");
+  $("voted").classList.add("hidden");
+  showMessage("已清除上一位參加者的登入狀態，請下一位開始簽到。", false);
 }
 
 function startListeners(name, hasVoted) {
@@ -146,6 +200,6 @@ function setBusy(button, busy) { button.disabled = busy; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function readableError(error) {
   const code = String(error?.code || "").replace("functions/", "");
-  return ({ "not-found": "活動或個人代碼不正確。", "failed-precondition": error.message, "already-exists": "你已經投過票。", "permission-denied": "你沒有執行此操作的權限。", unauthenticated: "登入狀態已失效，請重新整理。" })[code] || error?.message || "操作失敗，請稍後再試。";
+  return ({ "not-found": error.message || "找不到相符的報名資料。", "failed-precondition": error.message, "already-exists": "你已經投過票。", "permission-denied": "你沒有執行此操作的權限。", unauthenticated: "登入狀態已失效，請重新整理。" })[code] || error?.message || "操作失敗，請稍後再試。";
 }
 function showMessage(text, error) { $("message").textContent = text; $("message").className = `notice ${error ? "error" : "ok"}`; }

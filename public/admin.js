@@ -1,11 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+import { firebaseConfig, functionsRegion } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app, functionsRegion);
+const staffCheckIn = httpsCallable(functions, "staffCheckIn");
 const $ = (id) => document.getElementById(id);
 let unsubscribers = [];
 
@@ -70,17 +73,19 @@ $("importParticipants").onclick = async () => {
   try {
     const parsed = [];
     for (const row of rows) {
-      const [name, accessCode, ...extra] = row.split(",").map((value) => value.trim());
-      if (!name || !accessCode || extra.length) throw new Error(`格式錯誤：${row}`);
-      if (accessCode.length < 8 || accessCode.length > 32) throw new Error(`個人代碼需為 8–32 字元：${name}`);
-      parsed.push({ name, accessCodeHash: await sha256(accessCode.toUpperCase()) });
+      const [name, church, ...extra] = row.split(",").map(normalizedIdentityText);
+      if (!name || !church || extra.length) throw new Error(`格式錯誤：${row}`);
+      if (name.length > 80 || church.length > 100) throw new Error(`姓名或教會名稱過長：${name}`);
+      const lookupKeyHash = await participantLookupHash(name, church);
+      if (parsed.some((item) => item.lookupKeyHash === lookupKeyHash)) throw new Error(`同名且同教會的資料重複：${name}（${church}）`);
+      parsed.push({ name, church, lookupKeyHash });
     }
     const batch = writeBatch(db);
     for (const participant of parsed) {
-      const participantId = participant.accessCodeHash.slice(0, 32);
+      const participantId = participant.lookupKeyHash.slice(0, 32);
       const ref = doc(db, "events", eventId, "participants", participantId);
       const existing = await getDoc(ref);
-      const data = { name: participant.name, accessCodeHash: participant.accessCodeHash, eligible: true };
+      const data = { name: participant.name, church: participant.church, lookupKeyHash: participant.lookupKeyHash, eligible: true };
       if (!existing.exists()) Object.assign(data, { checkedInAt: null, hasVoted: false, createdAt: serverTimestamp() });
       batch.set(ref, data, { merge: true });
     }
@@ -101,14 +106,34 @@ function subscribeStats(eventId) {
     const voted = participants.filter((item) => item.hasVoted).length;
     $("stats").textContent = `名單 ${participants.length} 人｜已簽到 ${checkedIn} 人｜已投票 ${voted} 人`;
     $("adminResults").innerHTML = candidates.sort((a, b) => a.order - b.order).map((candidate) => `<div class="result-row"><strong>${escapeHtml(candidate.name)}</strong><strong>${tallies.get(candidate.id) || 0} 票</strong></div>`).join("");
+    $("participantRoster").innerHTML = participants
+      .sort((a, b) => a.church.localeCompare(b.church, "zh-Hant") || a.name.localeCompare(b.name, "zh-Hant"))
+      .map((participant) => `<div class="list-item participant-row"><div><strong>${escapeHtml(participant.name)}</strong><small>${escapeHtml(participant.church)}｜${participant.checkedInAt ? `已簽到（${participant.checkInMethod === "staff" ? "工作人員" : "本人"}）` : "尚未簽到"}</small></div><button class="${participant.checkedInAt ? "secondary" : ""}" data-staff-checkin="${escapeHtml(participant.id)}" ${participant.checkedInAt ? "disabled" : ""}>${participant.checkedInAt ? "已簽到" : "工作人員代簽"}</button></div>`)
+      .join("") || '<div class="notice">尚未匯入參加者。</div>';
   };
-  unsubscribers.push(onSnapshot(collection(db, "events", eventId, "participants"), (snapshot) => { participants = snapshot.docs.map((item) => item.data()); render(); }));
+  unsubscribers.push(onSnapshot(collection(db, "events", eventId, "participants"), (snapshot) => { participants = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); render(); }));
   unsubscribers.push(onSnapshot(collection(db, "events", eventId, "candidates"), (snapshot) => { candidates = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); render(); }));
   unsubscribers.push(onSnapshot(collection(db, "events", eventId, "tallies"), (snapshot) => { tallies = new Map(snapshot.docs.map((item) => [item.id, item.data().count || 0])); render(); }));
 }
 
+$("participantRoster").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-staff-checkin]");
+  if (!button) return;
+  const eventId = normalizedEventId();
+  if (!eventId || !confirm("已核對姓名與教會，確定由工作人員代為簽到嗎？")) return;
+  setBusy(button, true);
+  try {
+    const response = await staffCheckIn({ eventId, participantId: button.dataset.staffCheckin });
+    showMessage(`${response.data.name}（${response.data.church}）已完成代簽。`, false);
+  } catch (error) { showError(error); }
+  finally { setBusy(button, false); }
+});
+
 function normalizedEventId() { return $("eventId").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, ""); }
 async function sha256(value) { const bytes = new TextEncoder().encode(value); const digest = await crypto.subtle.digest("SHA-256", bytes); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
+function normalizedIdentityText(value) { return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " "); }
+async function participantLookupHash(name, church) { return sha256(`${normalizedIdentityText(name).toLowerCase()}\n${normalizedIdentityText(church).toLowerCase()}`); }
+function setBusy(button, busy) { button.disabled = busy; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]); }
 function showError(error) { showMessage(error?.message || "操作失敗。", true); }
 function showMessage(text, error) { $("message").textContent = text; $("message").className = `notice ${error ? "error" : "ok"}`; }

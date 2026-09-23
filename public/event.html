@@ -10,11 +10,16 @@
   <main class="shell">
     <div class="brand">LINNAN EVENT</div>
     <h1 id="pageTitle">活動簽到與投票</h1>
-    <p class="lead" id="subtitle">輸入活動代碼與個人代碼完成簽到。</p>
+    <p class="lead" id="subtitle">輸入姓名並選擇教會完成簽到。</p>
 
     <section class="card stack" id="joinCard">
       <label>活動代碼<input id="eventId" autocomplete="off" maxlength="48" placeholder="例如 annual-meeting-2026"></label>
-      <label>個人代碼<input id="accessCode" autocomplete="one-time-code" maxlength="32" placeholder="請輸入主辦單位提供的代碼"></label>
+      <button id="loadEventBtn" class="secondary">載入活動與教會選項</button>
+      <div id="identityFields" class="stack hidden">
+        <label>姓名<input id="participantInputName" autocomplete="name" maxlength="80" placeholder="請輸入報名時的完整姓名"></label>
+        <label>教會<select id="church"><option value="">請選擇教會</option></select></label>
+        <label class="check-row"><input id="sharedDevice" type="checkbox">這是現場公用裝置</label>
+      </div>
       <button id="joinBtn">驗證並簽到</button>
     </section>
 
@@ -28,6 +33,7 @@
         <button type="submit" id="voteBtn">確認送出選票</button>
       </form>
       <div id="voted" class="notice ok hidden">你的選票已送出。本系統不保存你選擇的候選人與身分對照。</div>
+      <button id="nextParticipantBtn" class="secondary hidden" type="button">交給下一位參加者</button>
       <div id="results" class="hidden"><h2>投票結果</h2><div id="resultList"></div></div>
     </section>
     <div id="message" class="notice hidden"></div>

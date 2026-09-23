@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Data model:
     // events/{eventId}: title, electionTitle, status, createdAt, updatedAt
-    // participants: name, SHA-256 accessCodeHash, eligibility/check-in/vote state
+    // participants: name, church, SHA-256 lookupKeyHash, eligibility/check-in/vote state, staff audit fields
     // candidates: name, order, active, createdAt
     // tallies: aggregate count only; voteReceipts: proof of one-time use only
     function isSignedIn() {
@@ -38,12 +38,17 @@ service cloud.firestore {
     }
 
     function validParticipant(data) {
-      return data.keys().hasOnly(['name', 'accessCodeHash', 'eligible', 'checkedInAt', 'hasVoted', 'createdAt', 'updatedAt', 'lastAuthUid', 'votedAt'])
-        && data.keys().hasAll(['name', 'accessCodeHash', 'eligible', 'checkedInAt', 'hasVoted', 'createdAt'])
+      return data.keys().hasOnly(['name', 'church', 'lookupKeyHash', 'eligible', 'checkedInAt', 'checkInMethod', 'checkedInByUid', 'hasVoted', 'createdAt', 'updatedAt', 'lastAuthUid', 'votedAt'])
+        && data.keys().hasAll(['name', 'church', 'lookupKeyHash', 'eligible', 'checkedInAt', 'hasVoted', 'createdAt'])
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
-        && data.accessCodeHash is string && data.accessCodeHash.matches('^[a-f0-9]{64}$')
+        && data.church is string && data.church.size() >= 1 && data.church.size() <= 100
+        && data.lookupKeyHash is string && data.lookupKeyHash.matches('^[a-f0-9]{64}$')
         && data.eligible is bool
         && (data.checkedInAt == null || data.checkedInAt is timestamp)
+        && (data.checkedInAt == null || ('checkInMethod' in data && data.checkInMethod in ['self', 'staff']))
+        && (!('checkInMethod' in data) || data.checkInMethod in ['self', 'staff'])
+        && (!('checkedInByUid' in data) || (data.checkedInByUid is string && data.checkedInByUid.size() >= 1 && data.checkedInByUid.size() <= 128))
+        && (!('checkInMethod' in data) || data.checkInMethod != 'staff' || 'checkedInByUid' in data)
         && data.hasVoted is bool
         && data.createdAt is timestamp
         && (!('updatedAt' in data) || data.updatedAt is timestamp)
@@ -74,7 +79,7 @@ service cloud.firestore {
         allow update: if isBootstrapAdmin()
           && validParticipant(request.resource.data)
           && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.accessCodeHash == resource.data.accessCodeHash;
+          && request.resource.data.lookupKeyHash == resource.data.lookupKeyHash;
         allow delete: if isBootstrapAdmin();
       }
 

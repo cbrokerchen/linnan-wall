@@ -31,10 +31,16 @@
 
       <section class="card stack">
         <h2>參加者名單</h2>
-        <p class="meta">每行格式：姓名,個人代碼。個人代碼只會以雜湊值保存。</p>
-        <textarea id="participants" placeholder="王小明,A10293XZ&#10;陳小華,B57210QK"></textarea>
+        <p class="meta">每行格式：姓名,教會名稱。同一教會不可有完全同名的兩筆資料。</p>
+        <textarea id="participants" placeholder="王小明,林南教會&#10;陳小華,和平教會"></textarea>
         <button id="importParticipants">匯入／更新名單</button>
         <div id="participantSummary" class="notice hidden"></div>
+      </section>
+
+      <section class="card stack">
+        <h2>工作人員代簽</h2>
+        <p class="meta">適用於沒有智慧型手機或需要協助的參加者。請核對姓名與教會後再按代簽。</p>
+        <div id="participantRoster" class="list"><div class="notice">選擇活動後顯示名單。</div></div>
       </section>
 
       <section class="card stack">
