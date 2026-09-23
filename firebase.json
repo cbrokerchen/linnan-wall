@@ -17,8 +17,7 @@
         "supportEmail": "cbroker@gmail.com",
         "authorizedRedirectUris": [
           "https://linnan-wall.web.app",
-          "https://linnan-de218.web.app",
-          "http://localhost"
+          "https://linnan-de218.web.app"
         ]
       }
     }
