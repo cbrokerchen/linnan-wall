@@ -10,6 +10,7 @@
     "test:rules": "node --test firestore.rules.test.js"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.2.0",
     "firebase-admin": "^14.4.0",
     "firebase-functions": "^7.4.0"
   },
