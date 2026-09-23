@@ -1,23 +1,121 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 舊的 wordcloud_words（保留，使用者自己玩的）
+    // Data model:
+    // events/{eventId}: title, electionTitle, status, createdAt, updatedAt
+    // participants: name, SHA-256 accessCodeHash, eligibility/check-in/vote state
+    // candidates: name, order, active, createdAt
+    // tallies: aggregate count only; voteReceipts: proof of one-time use only
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == 'cbroker@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isParticipant(eventId) {
+      return isSignedIn()
+        && request.auth.token.eventId == eventId
+        && request.auth.token.participantId is string;
+    }
+
+    function isOwnParticipant(eventId, participantId) {
+      return isParticipant(eventId)
+        && request.auth.token.participantId == participantId;
+    }
+
+    function validEvent(data) {
+      return data.keys().hasOnly(['title', 'electionTitle', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['title', 'electionTitle', 'status', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 100
+        && data.electionTitle is string && data.electionTitle.size() >= 1 && data.electionTitle.size() <= 150
+        && data.status in ['checkin', 'voting', 'closed', 'results']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validParticipant(data) {
+      return data.keys().hasOnly(['name', 'accessCodeHash', 'eligible', 'checkedInAt', 'hasVoted', 'createdAt', 'updatedAt', 'lastAuthUid', 'votedAt'])
+        && data.keys().hasAll(['name', 'accessCodeHash', 'eligible', 'checkedInAt', 'hasVoted', 'createdAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.accessCodeHash is string && data.accessCodeHash.matches('^[a-f0-9]{64}$')
+        && data.eligible is bool
+        && (data.checkedInAt == null || data.checkedInAt is timestamp)
+        && data.hasVoted is bool
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp)
+        && (!('lastAuthUid' in data) || (data.lastAuthUid is string && data.lastAuthUid.size() <= 128))
+        && (!('votedAt' in data) || data.votedAt is timestamp);
+    }
+
+    function validCandidate(data) {
+      return data.keys().hasOnly(['name', 'order', 'active', 'createdAt'])
+        && data.keys().hasAll(['name', 'order', 'active', 'createdAt'])
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.order is int && data.order >= 0 && data.order <= 500
+        && data.active is bool
+        && data.createdAt is timestamp;
+    }
+
+    match /events/{eventId} {
+      allow read: if isBootstrapAdmin() || isParticipant(eventId);
+      allow create: if isBootstrapAdmin() && validEvent(request.resource.data);
+      allow update: if isBootstrapAdmin()
+        && validEvent(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      match /participants/{participantId} {
+        allow read: if isBootstrapAdmin() || isOwnParticipant(eventId, participantId);
+        allow create: if isBootstrapAdmin() && validParticipant(request.resource.data);
+        allow update: if isBootstrapAdmin()
+          && validParticipant(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.accessCodeHash == resource.data.accessCodeHash;
+        allow delete: if isBootstrapAdmin();
+      }
+
+      match /candidates/{candidateId} {
+        allow read: if isBootstrapAdmin() || isParticipant(eventId);
+        allow create: if isBootstrapAdmin() && validCandidate(request.resource.data);
+        allow update: if isBootstrapAdmin()
+          && validCandidate(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isBootstrapAdmin();
+      }
+
+      match /tallies/{candidateId} {
+        allow read: if isBootstrapAdmin()
+          || (isParticipant(eventId) && get(/databases/$(database)/documents/events/$(eventId)).data.status == 'results');
+        allow write: if false;
+      }
+
+      match /voteReceipts/{participantId} {
+        allow read, write: if false;
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    // Legacy apps retained for compatibility and isolated from event voting.
     match /wordcloud_words/{document} {
       allow read, write: if true;
     }
-    // scout_trips 集合：任何人可讀寫（童軍追蹤用，連結限群組內分享）
     match /scout_trips/{trip}/{document=**} {
       allow read, write: if true;
     }
-    // 討論牆：knows URL 即可用，免登入（10/12 工人會）
-    // ponytail: 無鑑權，任何能連上網址的人皆可讀寫 posts/config；活動內部使用可接受
     match /posts/{doc} {
       allow read, write: if true;
     }
     match /config/{doc} {
       allow read, write: if true;
     }
-    // 其他集合預設禁止
+
     match /{document=**} {
       allow read, write: if false;
     }

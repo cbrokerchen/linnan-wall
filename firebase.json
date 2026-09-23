@@ -2,7 +2,26 @@
   "firestore": {
     "database": "(default)",
     "location": "asia-east1",
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  },
+  "auth": {
+    "providers": {
+      "anonymous": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "林南活動簽到與投票",
+        "supportEmail": "cbroker@gmail.com",
+        "authorizedRedirectUris": [
+          "https://linnan-wall.web.app",
+          "https://linnan-de218.web.app",
+          "http://localhost"
+        ]
+      }
+    }
   },
   "hosting": {
     "site": "linnan-wall",

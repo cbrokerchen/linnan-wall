@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>活動管理</title>
+  <link rel="stylesheet" href="event.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">LINNAN ADMIN</div>
+    <div class="toolbar"><div><h1>活動管理</h1><p class="lead">建立活動、匯入名單並控制投票階段。</p></div><button id="loginBtn">Google 管理員登入</button><button id="logoutBtn" class="secondary hidden">登出</button></div>
+    <div id="authMessage" class="notice">請使用授權的管理員 Google 帳號登入。</div>
+
+    <section id="adminPanel" class="hidden">
+      <section class="card stack">
+        <h2>活動設定</h2>
+        <label>活動代碼<input id="eventId" maxlength="48" placeholder="annual-meeting-2026"></label>
+        <label>活動名稱<input id="title" maxlength="100" placeholder="年度會員大會"></label>
+        <label>投票題目<input id="electionTitle" maxlength="150" placeholder="理事選舉"></label>
+        <label>目前階段<select id="status"><option value="checkin">簽到中</option><option value="voting">投票中</option><option value="closed">已截止</option><option value="results">公布結果</option></select></label>
+        <button id="saveEvent">儲存活動設定</button>
+        <div class="meta">參加者網址：<code id="eventUrl">請先輸入活動代碼</code></div>
+      </section>
+
+      <section class="card stack">
+        <h2>候選人</h2>
+        <label>每行一位，依顯示順序排列<textarea id="candidates" placeholder="王小明&#10;陳小華"></textarea></label>
+        <button id="saveCandidates">儲存候選人</button>
+      </section>
+
+      <section class="card stack">
+        <h2>參加者名單</h2>
+        <p class="meta">每行格式：姓名,個人代碼。個人代碼只會以雜湊值保存。</p>
+        <textarea id="participants" placeholder="王小明,A10293XZ&#10;陳小華,B57210QK"></textarea>
+        <button id="importParticipants">匯入／更新名單</button>
+        <div id="participantSummary" class="notice hidden"></div>
+      </section>
+
+      <section class="card stack">
+        <h2>即時狀態</h2>
+        <div id="stats" class="notice">選擇活動後顯示統計。</div>
+        <div id="adminResults"></div>
+      </section>
+    </section>
+    <div id="message" class="notice hidden"></div>
+  </main>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
