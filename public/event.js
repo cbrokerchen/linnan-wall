@@ -12,7 +12,7 @@ const claimParticipant = httpsCallable(functions, "claimParticipant");
 const getCheckInOptions = httpsCallable(functions, "getCheckInOptions");
 const castVote = httpsCallable(functions, "castVote");
 const $ = (id) => document.getElementById(id);
-let currentEventId = localStorage.getItem("eventId") || new URLSearchParams(location.search).get("event") || "";
+let currentEventId = new URLSearchParams(location.search).get("event") || localStorage.getItem("eventId") || "";
 let participantId = localStorage.getItem("participantId") || "";
 let eventData = null;
 let candidates = [];
