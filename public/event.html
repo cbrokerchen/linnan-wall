@@ -11,6 +11,7 @@
     <div class="brand">LINNAN EVENT</div>
     <h1 id="pageTitle">活動簽到與投票</h1>
     <p class="lead" id="subtitle">輸入姓名並選擇教會完成簽到。</p>
+    <div id="message" class="notice hidden" role="status" aria-live="polite"></div>
 
     <section class="card stack" id="joinCard">
       <button id="loadEventBtn" class="secondary">重新載入活動資料</button>
@@ -41,7 +42,6 @@
       <button id="nextParticipantBtn" class="secondary hidden" type="button">交給下一位參加者</button>
       <div id="results" class="hidden"><h2>投票結果</h2><div id="resultList"></div></div>
     </section>
-    <div id="message" class="notice hidden"></div>
   </main>
   <script type="module" src="event.js"></script>
 </body>

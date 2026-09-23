@@ -40,6 +40,7 @@ $("joinBtn").onclick = async () => {
     localStorage.setItem("participantId", participantId);
     sessionStorage.setItem("sharedDeviceMode", sharedDeviceMode ? "1" : "0");
     await auth.currentUser.getIdToken(true);
+    clearMessage();
     startListeners(response.data.name, response.data.hasVoted);
   } catch (error) {
     showMessage(readableError(error), true);
@@ -201,3 +202,4 @@ function readableError(error) {
   return ({ "not-found": error.message || "找不到相符的報名資料。", "failed-precondition": error.message, "already-exists": "你已經投過票。", "permission-denied": "你沒有執行此操作的權限。", unauthenticated: "登入狀態已失效，請重新整理。" })[code] || error?.message || "操作失敗，請稍後再試。";
 }
 function showMessage(text, error) { $("message").textContent = text; $("message").className = `notice ${error ? "error" : "ok"}`; }
+function clearMessage() { $("message").textContent = ""; $("message").className = "notice hidden"; }
