@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>活動簽到與投票</title>
+  <link rel="stylesheet" href="event.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">LINNAN EVENT</div>
+    <h1 id="pageTitle">活動簽到與投票</h1>
+    <p class="lead" id="subtitle">輸入姓名並選擇教會完成簽到。</p>
+    <div id="message" class="notice hidden" role="status" aria-live="polite"></div>
+
+    <section class="card stack" id="joinCard">
+      <button id="loadEventBtn" class="secondary">重新載入活動資料</button>
+      <div id="identityFields" class="stack hidden">
+        <label>姓名<input id="participantInputName" autocomplete="name" maxlength="80" placeholder="請輸入報名時的完整姓名"></label>
+        <label>教會<select id="church"><option value="">請選擇教會</option></select></label>
+        <label class="check-row"><input id="sharedDevice" type="checkbox">這是現場公用裝置</label>
+      </div>
+      <button id="joinBtn">驗證並簽到</button>
+    </section>
+
+    <section class="card stack hidden" id="statusCard">
+      <div class="toolbar"><strong id="participantName"></strong><span class="pill" id="eventStatus"></span></div>
+      <div class="notice ok" id="checkinNotice">已完成簽到</div>
+      <a class="button-link secondary" href="/?s=1" target="_blank" rel="noopener">進入同工會互動牆</a>
+      <div id="waiting" class="notice">主持人尚未開放投票，頁面會自動更新。</div>
+      <form id="voteForm" class="hidden">
+        <h2 id="electionTitle">投票</h2>
+        <div class="choices" id="candidateList"></div>
+        <div class="write-in">
+          <label>找不到想選的教會？可自行輸入候選教會
+            <input id="writeInName" maxlength="80" autocomplete="off" placeholder="輸入教會名稱後，這一票會投給該教會">
+          </label>
+          <p class="meta">若輸入的教會名稱已存在，系統會自動合併到同一間候選教會。</p>
+        </div>
+        <button type="submit" id="voteBtn">確認送出選票</button>
+      </form>
+      <div id="voted" class="notice ok hidden">你的選票已送出。本系統不保存你選擇的候選教會與身分對照。</div>
+      <button id="nextParticipantBtn" class="secondary hidden" type="button">交給下一位參加者</button>
+      <div id="results" class="hidden"><h2>投票結果</h2><div id="resultList"></div></div>
+    </section>
+  </main>
+  <script type="module" src="event.js"></script>
+</body>
+</html>

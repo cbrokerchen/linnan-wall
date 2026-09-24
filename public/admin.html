@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>活動管理</title>
+  <link rel="stylesheet" href="event.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="brand">LINNAN ADMIN</div>
+    <div class="toolbar"><div><h1>地方同工會管理</h1><p class="lead">管理本次活動的名單、簽到與投票階段。</p></div><button id="loginBtn">Google 管理員登入</button><button id="logoutBtn" class="secondary hidden">登出</button></div>
+    <div id="authMessage" class="notice">請使用授權的管理員 Google 帳號登入。</div>
+    <div id="message" class="notice hidden" role="status" aria-live="polite"></div>
+
+    <section id="adminPanel" class="hidden">
+      <section class="card stack">
+        <h2>活動設定</h2>
+        <label>活動名稱<input id="title" maxlength="100" placeholder="年度會員大會"></label>
+        <label>票選題目<input id="electionTitle" maxlength="150" placeholder="合作教會票選"></label>
+        <label>目前階段<select id="status"><option value="checkin">簽到中</option><option value="voting">投票中</option><option value="closed">已截止</option><option value="results">公布結果</option></select></label>
+        <button id="saveEvent">儲存活動設定</button>
+        <div class="meta">參加者網址：<code id="eventUrl">https://linnan-wall.web.app/event.html</code></div>
+      </section>
+
+      <section class="card stack">
+        <h2>互動牆管理</h2>
+        <div id="wallActiveQuestion" class="notice">互動題目載入中。</div>
+        <div id="wallQuestionButtons" class="wall-question-grid" aria-label="切換互動牆題目">
+          <button type="button" class="secondary" data-wall-question="1">第 1 題</button>
+          <button type="button" class="secondary" data-wall-question="2">第 2 題</button>
+          <button type="button" class="secondary" data-wall-question="3">第 3 題</button>
+          <button type="button" class="secondary" data-wall-question="4">第 4 題</button>
+        </div>
+        <div id="wallResponseCount" class="meta">回應統計載入中。</div>
+        <div class="row">
+          <a class="button-link secondary" href="/" target="_blank" rel="noopener">開啟投影畫面</a>
+          <a class="button-link secondary" href="/?s=1" target="_blank" rel="noopener">開啟手機輸入頁</a>
+        </div>
+        <button id="clearWallQuestion" type="button" class="danger">清空目前題目的回應</button>
+      </section>
+
+      <section class="card stack">
+        <h2>候選教會</h2>
+        <label>每行一間教會，依顯示順序排列<textarea id="candidates" placeholder="林南教會&#10;和平教會"></textarea></label>
+        <button id="saveCandidates">儲存候選教會</button>
+      </section>
+
+      <section class="card stack">
+        <h2>手動名單匯入</h2>
+        <p class="meta">臨時補登或同步失敗時使用。每行格式：姓名,教會名稱。同一教會不可有完全同名的兩筆資料。</p>
+        <textarea id="participants" placeholder="王小明,林南教會&#10;陳小華,和平教會"></textarea>
+        <button id="importParticipants">匯入／更新名單</button>
+        <div id="participantSummary" class="notice hidden"></div>
+      </section>
+
+      <section class="card stack">
+        <h2>參加者名單</h2>
+        <p class="meta">此處顯示已匯入的完整名單與簽到狀態；沒有智慧型手機或需要協助時，可由工作人員核對資料後代簽。</p>
+        <div id="participantRoster" class="list"><div class="notice">名單載入中。</div></div>
+      </section>
+
+      <section class="card stack">
+        <h2>即時狀態</h2>
+        <div id="stats" class="notice">統計載入中。</div>
+        <div id="adminResults"></div>
+      </section>
+    </section>
+  </main>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
