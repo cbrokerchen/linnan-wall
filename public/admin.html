@@ -65,6 +65,19 @@
         <div id="stats" class="notice">統計載入中。</div>
         <div id="adminResults"></div>
       </section>
+
+      <section class="card stack danger-zone">
+        <h2>資料重設</h2>
+        <p class="meta">以下操作無法復原。活動設定與參加者名單都會保留；清除候選教會前必須先清除投票資料。</p>
+        <div class="reset-actions">
+          <button type="button" class="danger" data-reset-mode="checkins">清除簽到紀錄</button>
+          <button type="button" class="danger" data-reset-mode="votes">清除投票紀錄</button>
+          <button type="button" class="danger" data-reset-mode="candidates">清除候選教會</button>
+          <button type="button" class="danger" data-reset-mode="wall">清除全部互動牆回應</button>
+        </div>
+        <div class="notice error">一鍵重設會清除簽到、投票與全部互動牆回應，但保留活動設定、參加者名單與候選教會。</div>
+        <button id="resetActivity" type="button" class="danger">重設活動紀錄至正式使用前狀態</button>
+      </section>
     </section>
   </main>
   <script type="module" src="admin.js"></script>

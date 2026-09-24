@@ -30,6 +30,8 @@ button:disabled { opacity: .5; cursor: wait; }
 .row > * { flex: 1; }
 .wall-question-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .wall-question-grid button.active { background: var(--green); color: white; }
+.danger-zone { border-color: #d7a39a; }
+.reset-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .hidden { display: none !important; }
 .notice { padding: 13px 15px; border-radius: 11px; background: #eee8dc; color: var(--muted); line-height: 1.6; }
 .notice.ok { background: #e2f0e8; color: var(--green); }
@@ -53,4 +55,4 @@ button:disabled { opacity: .5; cursor: wait; }
 .bar { height: 9px; border-radius: 99px; background: #eee5d7; overflow: hidden; margin-top: 6px; }
 .bar > i { display: block; height: 100%; background: var(--green); }
 code { word-break: break-word; }
-@media (max-width: 560px) { .shell { width: min(100% - 20px, 720px); padding-top: 20px; } .card { padding: 18px; } .wall-question-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .shell { width: min(100% - 20px, 720px); padding-top: 20px; } .card { padding: 18px; } .wall-question-grid, .reset-actions { grid-template-columns: repeat(2, 1fr); } }

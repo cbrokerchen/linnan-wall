@@ -48,3 +48,8 @@ test("permits shared-device claim during voting only after staff check-in", () =
   assert.throws(() => _test.validateClaimState({ status: "voting" }, { eligible: true, checkedInAt: null }), /一般簽到已截止/);
   assert.doesNotThrow(() => _test.validateClaimState({ status: "checkin" }, { eligible: true, checkedInAt: null }));
 });
+
+test("accepts only the supported administrator reset modes", () => {
+  for (const mode of ["checkins", "votes", "candidates", "wall", "activity"]) assert.equal(_test.isValidResetMode(mode), true);
+  for (const mode of ["", "participants", "all", "activity "]) assert.equal(_test.isValidResetMode(mode), false);
+});

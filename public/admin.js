@@ -9,6 +9,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, functionsRegion);
 const staffCheckIn = httpsCallable(functions, "staffCheckIn");
+const resetEventData = httpsCallable(functions, "resetEventData");
 const $ = (id) => document.getElementById(id);
 const EVENT_ID = "registration-test";
 const WALL_QUESTIONS = [
@@ -194,6 +195,38 @@ $("clearWallQuestion").onclick = async () => {
   } catch (error) { showError(error); }
   finally { setBusy(button, false); }
 };
+
+document.querySelectorAll("[data-reset-mode]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const labels = {
+      checkins: "所有簽到紀錄",
+      votes: "所有票數、投票憑證及已投票狀態",
+      candidates: "所有候選教會",
+      wall: "全部互動牆回應",
+    };
+    const mode = button.dataset.resetMode;
+    if (!confirm(`確定清除${labels[mode]}嗎？此操作無法復原。`)) return;
+    await runReset(button, mode, `${labels[mode]}已清除。`);
+  });
+});
+
+$("resetActivity").onclick = async () => {
+  const confirmation = prompt("這會清除簽到、投票及全部互動牆回應。\n活動設定、參加者名單與候選教會會保留。\n\n請輸入「確認重設」繼續：");
+  if (confirmation !== "確認重設") {
+    if (confirmation !== null) showError(new Error("確認文字不符，未執行重設。"));
+    return;
+  }
+  await runReset($("resetActivity"), "activity", "活動紀錄已重設，可供正式使用。候選教會與參加者名單已保留。");
+};
+
+async function runReset(button, mode, successMessage) {
+  setBusy(button, true);
+  try {
+    await resetEventData({ eventId: EVENT_ID, mode });
+    showMessage(successMessage, false);
+  } catch (error) { showError(error); }
+  finally { setBusy(button, false); }
+}
 
 $("participantRoster").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-staff-checkin]");

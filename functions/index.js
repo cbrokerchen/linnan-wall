@@ -8,6 +8,7 @@ initializeApp();
 const db = getFirestore();
 const REGION = "asia-east1";
 const EVENT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{2,47}$/;
+const RESET_MODES = new Set(["checkins", "votes", "candidates", "wall", "activity"]);
 
 exports.claimParticipant = onCall({ region: REGION, enforceAppCheck: false }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "請先登入。");
@@ -122,6 +123,62 @@ exports.castVote = onCall({ region: REGION, enforceAppCheck: false }, async (req
   return { accepted: true };
 });
 
+exports.resetEventData = onCall({ region: REGION, enforceAppCheck: false }, async (request) => {
+  if (!isBootstrapAdminRequest(request)) throw new HttpsError("permission-denied", "只有授權管理員可以清除活動資料。");
+  const eventId = normalizedEventId(request.data?.eventId);
+  const mode = String(request.data?.mode || "");
+  if (!EVENT_ID_PATTERN.test(eventId) || !isValidResetMode(mode)) throw new HttpsError("invalid-argument", "資料重設選項無效。");
+  const eventRef = db.doc(`events/${eventId}`);
+  if (!(await eventRef.get()).exists) throw new HttpsError("not-found", "找不到活動。");
+
+  const result = { participants: 0, candidates: 0, tallies: 0, voteReceipts: 0, wallPosts: 0 };
+  if (mode === "activity") result.participants = await resetParticipantState(eventRef, { checkins: true, votes: true });
+  if (mode === "checkins") result.participants = await resetParticipantState(eventRef, { checkins: true, votes: false });
+  if (mode === "votes" || mode === "activity") {
+    if (mode === "votes") result.participants = await resetParticipantState(eventRef, { checkins: false, votes: true });
+    result.tallies = await deleteCollection(eventRef.collection("tallies"));
+    result.voteReceipts = await deleteCollection(eventRef.collection("voteReceipts"));
+  }
+  if (mode === "candidates") {
+    const [tallies, receipts, votedParticipants] = await Promise.all([
+      eventRef.collection("tallies").limit(1).get(),
+      eventRef.collection("voteReceipts").limit(1).get(),
+      eventRef.collection("participants").where("hasVoted", "==", true).limit(1).get(),
+    ]);
+    if (!tallies.empty || !receipts.empty || !votedParticipants.empty) throw new HttpsError("failed-precondition", "請先清除投票資料，再清除候選教會。");
+    result.candidates = await deleteCollection(eventRef.collection("candidates"));
+  }
+  if (mode === "wall" || mode === "activity") result.wallPosts = await deleteCollection(db.collection("posts"));
+  return result;
+});
+
+async function resetParticipantState(eventRef, { checkins, votes }) {
+  const snapshot = await eventRef.collection("participants").get();
+  for (let offset = 0; offset < snapshot.docs.length; offset += 400) {
+    const batch = db.batch();
+    for (const item of snapshot.docs.slice(offset, offset + 400)) {
+      const update = { updatedAt: FieldValue.serverTimestamp() };
+      if (checkins) Object.assign(update, { checkedInAt: null, checkInMethod: FieldValue.delete(), checkedInByUid: FieldValue.delete(), lastAuthUid: FieldValue.delete() });
+      if (votes) Object.assign(update, { hasVoted: false, votedAt: FieldValue.delete() });
+      batch.update(item.ref, update);
+    }
+    await batch.commit();
+  }
+  return snapshot.size;
+}
+
+async function deleteCollection(collectionRef) {
+  let deleted = 0;
+  while (true) {
+    const snapshot = await collectionRef.limit(400).get();
+    if (snapshot.empty) return deleted;
+    const batch = db.batch();
+    snapshot.docs.forEach((item) => batch.delete(item.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+  }
+}
+
 function normalizedEventId(value) { return String(value || "").trim().toLowerCase(); }
 function normalizedIdentityText(value) { return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " "); }
 function isValidIdentityText(value, maxLength) { return value.length >= 1 && value.length <= maxLength; }
@@ -131,6 +188,7 @@ function candidateIdFromName(name) { return sha256(normalizedIdentityText(name).
 function isBootstrapAdminRequest(request) {
   return request.auth?.token?.email === "cbroker@gmail.com" && request.auth.token.email_verified === true;
 }
+function isValidResetMode(mode) { return RESET_MODES.has(mode); }
 function validateClaimState(event, participant) {
   if (!event || !["checkin", "voting"].includes(event.status)) throw new HttpsError("failed-precondition", "目前不開放簽到或登入投票。");
   if (!participant?.eligible) throw new HttpsError("permission-denied", "你目前沒有投票資格。");
@@ -146,4 +204,4 @@ function validateVoteState({ event, participant, candidate, receiptExists, allow
   if ((!candidate && !allowCandidateCreate) || (candidate && candidate.active !== true)) throw new HttpsError("invalid-argument", "候選教會無效。");
 }
 
-exports._test = { normalizedEventId, normalizedIdentityText, participantLookupHash, candidateIdFromName, sha256, validateClaimState, validateVoteState, EVENT_ID_PATTERN };
+exports._test = { normalizedEventId, normalizedIdentityText, participantLookupHash, candidateIdFromName, sha256, validateClaimState, validateVoteState, isValidResetMode, EVENT_ID_PATTERN };

@@ -19,6 +19,8 @@ Firebase Hosting site for the existing discussion wall and the new event check-i
 
 The same administrator page can switch the active discussion-wall question, show its live response count, open the projector or mobile submission view, and clear the active question after confirmation.
 
+Its data-reset section can independently clear check-ins, votes, candidate churches, or every discussion-wall response. The guarded full reset clears check-ins, votes, and wall responses while preserving event settings, the participant roster, and candidate churches.
+
 Name/church lookup keys are normalized and stored as SHA-256 hashes alongside the administrator-only roster fields. Votes are processed by a callable Cloud Function transaction. Firestore stores a participant's used receipt and aggregate church tallies in separate collections; it does not store a participant-to-church mapping.
 
 ## Local checks
