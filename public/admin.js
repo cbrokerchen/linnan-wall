@@ -75,7 +75,7 @@ $("saveEvent").onclick = async () => {
 $("saveCandidates").onclick = async () => {
   const eventId = EVENT_ID;
   const names = $("candidates").value.split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-  if (!names.length) return showError(new Error("請先輸入候選人。"));
+  if (!names.length) return showError(new Error("請先輸入候選教會。"));
   try {
     const existing = await getDocs(collection(db, "events", eventId, "candidates"));
     const desired = [];
@@ -90,7 +90,7 @@ $("saveCandidates").onclick = async () => {
       batch.set(doc(db, "events", eventId, "candidates", candidate.id), data, { merge: true });
     }
     await batch.commit();
-    showMessage(`已儲存 ${names.length} 位候選人。`, false);
+    showMessage(`已儲存 ${names.length} 間候選教會。`, false);
   } catch (error) { showError(error); }
 };
 

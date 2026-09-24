@@ -32,14 +32,14 @@
         <h2 id="electionTitle">投票</h2>
         <div class="choices" id="candidateList"></div>
         <div class="write-in">
-          <label>找不到想選的人？可自行輸入候選人姓名
-            <input id="writeInName" maxlength="80" autocomplete="off" placeholder="輸入姓名後，這一票會投給此人">
+          <label>找不到想選的教會？可自行輸入候選教會
+            <input id="writeInName" maxlength="80" autocomplete="off" placeholder="輸入教會名稱後，這一票會投給該教會">
           </label>
-          <p class="meta">若輸入的姓名已存在，系統會自動合併到同一位候選人。</p>
+          <p class="meta">若輸入的教會名稱已存在，系統會自動合併到同一間候選教會。</p>
         </div>
         <button type="submit" id="voteBtn">確認送出選票</button>
       </form>
-      <div id="voted" class="notice ok hidden">你的選票已送出。本系統不保存你選擇的候選人與身分對照。</div>
+      <div id="voted" class="notice ok hidden">你的選票已送出。本系統不保存你選擇的候選教會與身分對照。</div>
       <button id="nextParticipantBtn" class="secondary hidden" type="button">交給下一位參加者</button>
       <div id="results" class="hidden"><h2>投票結果</h2><div id="resultList"></div></div>
     </section>

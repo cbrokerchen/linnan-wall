@@ -17,7 +17,7 @@
       <section class="card stack">
         <h2>活動設定</h2>
         <label>活動名稱<input id="title" maxlength="100" placeholder="年度會員大會"></label>
-        <label>投票題目<input id="electionTitle" maxlength="150" placeholder="理事選舉"></label>
+        <label>票選題目<input id="electionTitle" maxlength="150" placeholder="合作教會票選"></label>
         <label>目前階段<select id="status"><option value="checkin">簽到中</option><option value="voting">投票中</option><option value="closed">已截止</option><option value="results">公布結果</option></select></label>
         <button id="saveEvent">儲存活動設定</button>
         <div class="meta">參加者網址：<code id="eventUrl">https://linnan-wall.web.app/event.html</code></div>
@@ -41,9 +41,9 @@
       </section>
 
       <section class="card stack">
-        <h2>候選人</h2>
-        <label>每行一位，依顯示順序排列<textarea id="candidates" placeholder="王小明&#10;陳小華"></textarea></label>
-        <button id="saveCandidates">儲存候選人</button>
+        <h2>候選教會</h2>
+        <label>每行一間教會，依顯示順序排列<textarea id="candidates" placeholder="林南教會&#10;和平教會"></textarea></label>
+        <button id="saveCandidates">儲存候選教會</button>
       </section>
 
       <section class="card stack">

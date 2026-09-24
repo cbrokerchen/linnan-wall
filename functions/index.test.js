@@ -28,7 +28,7 @@ test("rejects duplicate votes even when participant flag and receipt disagree", 
 test("rejects voting outside the open window and inactive candidates", () => {
   const participant = { eligible: true, checkedInAt: new Date(), hasVoted: false };
   assert.throws(() => _test.validateVoteState({ event: { status: "closed" }, participant, candidate: { active: true }, receiptExists: false }), /未開放投票/);
-  assert.throws(() => _test.validateVoteState({ event: { status: "voting" }, participant, candidate: { active: false }, receiptExists: false }), /候選人無效/);
+  assert.throws(() => _test.validateVoteState({ event: { status: "voting" }, participant, candidate: { active: false }, receiptExists: false }), /候選教會無效/);
 });
 
 test("normalizes self-entered candidate names to one deterministic id", () => {
@@ -40,7 +40,7 @@ test("normalizes self-entered candidate names to one deterministic id", () => {
 test("allows a new self-entered candidate but still rejects an inactive existing candidate", () => {
   const state = { event: { status: "voting" }, participant: { eligible: true, checkedInAt: new Date(), hasVoted: false }, receiptExists: false };
   assert.doesNotThrow(() => _test.validateVoteState({ ...state, candidate: null, allowCandidateCreate: true }));
-  assert.throws(() => _test.validateVoteState({ ...state, candidate: { active: false }, allowCandidateCreate: true }), /候選人無效/);
+  assert.throws(() => _test.validateVoteState({ ...state, candidate: { active: false }, allowCandidateCreate: true }), /候選教會無效/);
 });
 
 test("permits shared-device claim during voting only after staff check-in", () => {

@@ -53,8 +53,8 @@ $("voteForm").onsubmit = async (event) => {
   event.preventDefault();
   const choice = document.querySelector('input[name="candidate"]:checked');
   const writeInName = $("writeInName").value.trim();
-  if (!choice && !writeInName) return showMessage("請選擇一位候選人，或輸入候選人姓名。", true);
-  const choiceDescription = writeInName || choice.closest("label")?.innerText.trim() || "所選候選人";
+  if (!choice && !writeInName) return showMessage("請選擇一間候選教會，或輸入教會名稱。", true);
+  const choiceDescription = writeInName || choice.closest("label")?.innerText.trim() || "所選候選教會";
   if (!confirm(`送出後不能修改，確定投給「${choiceDescription}」嗎？`)) return;
   setBusy($("voteBtn"), true);
   try {
@@ -176,13 +176,13 @@ function renderState(hasVoted = !$("voted").classList.contains("hidden")) {
   $("waiting").classList.toggle("hidden", voting || results || hasVoted);
   $("voteForm").classList.toggle("hidden", !voting || hasVoted);
   $("results").classList.toggle("hidden", !results);
-  $("electionTitle").textContent = eventData.electionTitle || "請選擇一位候選人";
+  $("electionTitle").textContent = eventData.electionTitle || "請選擇一間候選教會";
 }
 
 function renderCandidates() {
   $("candidateList").innerHTML = candidates.map((candidate) => `
     <label class="choice"><input type="radio" name="candidate" value="${escapeHtml(candidate.id)}"><span>${escapeHtml(candidate.name)}</span></label>
-  `).join("") || '<div class="notice">尚未設定候選人。</div>';
+  `).join("") || '<div class="notice">尚未設定候選教會。</div>';
 }
 
 function renderResults(tallies) {

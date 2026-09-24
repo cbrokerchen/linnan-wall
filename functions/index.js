@@ -87,7 +87,7 @@ exports.castVote = onCall({ region: REGION, enforceAppCheck: false }, async (req
   const writeInName = normalizedIdentityText(request.data?.writeInName);
   const hasListedCandidate = /^[a-f0-9]{32}$/.test(requestedCandidateId);
   const hasWriteInCandidate = isValidIdentityText(writeInName, 80);
-  if (!EVENT_ID_PATTERN.test(eventId) || hasListedCandidate === hasWriteInCandidate) throw new HttpsError("invalid-argument", "請選擇一位候選人，或輸入一位自填候選人。");
+  if (!EVENT_ID_PATTERN.test(eventId) || hasListedCandidate === hasWriteInCandidate) throw new HttpsError("invalid-argument", "請選擇一間候選教會，或輸入一間自填候選教會。");
   if (request.auth.token.eventId !== eventId || typeof request.auth.token.participantId !== "string") throw new HttpsError("permission-denied", "簽到憑證不符。");
 
   const candidateId = hasWriteInCandidate ? candidateIdFromName(writeInName) : requestedCandidateId;
@@ -111,7 +111,7 @@ exports.castVote = onCall({ region: REGION, enforceAppCheck: false }, async (req
       allowCandidateCreate: hasWriteInCandidate
     });
     if (candidate && hasWriteInCandidate && normalizedIdentityText(candidate.name).toLowerCase() !== writeInName.toLowerCase()) {
-      throw new HttpsError("aborted", "候選人資料衝突，請重新整理後再試。");
+      throw new HttpsError("aborted", "候選教會資料衝突，請重新整理後再試。");
     }
 
     if (!candidateSnapshot.exists) transaction.create(candidateRef, { name: writeInName, order: 500, active: true, createdAt: FieldValue.serverTimestamp() });
@@ -143,7 +143,7 @@ function validateVoteState({ event, participant, candidate, receiptExists, allow
   if (!participant) throw new HttpsError("permission-denied", "找不到參加者資格。");
   if (!participant.eligible || !participant.checkedInAt) throw new HttpsError("permission-denied", "尚未完成簽到或沒有投票資格。");
   if (participant.hasVoted || receiptExists) throw new HttpsError("already-exists", "你已經投過票。");
-  if ((!candidate && !allowCandidateCreate) || (candidate && candidate.active !== true)) throw new HttpsError("invalid-argument", "候選人無效。");
+  if ((!candidate && !allowCandidateCreate) || (candidate && candidate.active !== true)) throw new HttpsError("invalid-argument", "候選教會無效。");
 }
 
 exports._test = { normalizedEventId, normalizedIdentityText, participantLookupHash, candidateIdFromName, sha256, validateClaimState, validateVoteState, EVENT_ID_PATTERN };
