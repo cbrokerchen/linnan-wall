@@ -22,6 +22,8 @@ input, textarea, select { width: 100%; border: 1px solid var(--line); border-rad
 textarea { min-height: 132px; resize: vertical; }
 button { border: 0; border-radius: 11px; padding: 13px 18px; background: var(--gold); color: white; font-weight: 800; cursor: pointer; }
 button.secondary { background: #eee5d7; color: var(--ink); }
+.button-link { display: block; border-radius: 11px; padding: 13px 18px; background: var(--gold); color: white; font-weight: 800; text-align: center; text-decoration: none; }
+.button-link.secondary { background: #eee5d7; color: var(--ink); }
 button.danger { background: var(--red); }
 button:disabled { opacity: .5; cursor: wait; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }

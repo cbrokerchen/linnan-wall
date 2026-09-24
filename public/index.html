@@ -23,6 +23,7 @@
   .qtitle{font-size:clamp(1.35rem,3.4vw,2.05rem);font-weight:700;line-height:1.45;margin-top:8px;color:var(--ink)}
   .live{display:inline-flex;align-items:center;gap:6px;margin-left:8px;background:var(--accent);color:#eef6f0;font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:999px;vertical-align:middle;letter-spacing:1px}
   .live::before{content:"";width:7px;height:7px;border-radius:50%;background:#7fe0ab;animation:blink 1.4s infinite}
+  .event-back{display:none;width:max-content;margin-top:12px;padding:8px 13px;border:1px solid var(--line);border-radius:9px;background:#fffdf8;color:var(--gold-deep);font-size:.86rem;font-weight:700;text-decoration:none}
   @keyframes blink{50%{opacity:.35}}
 
   .stage{max-width:1180px;margin:0 auto;padding:22px;display:flex;gap:24px;align-items:flex-start;min-height:60vh}
@@ -70,6 +71,7 @@
   <div class="wrap">
     <div class="kicker"><span class="dot"></span> 同工討論 · 第 <span class="qnum" id="qno">1</span> 題<span class="live" id="liveTag">LIVE</span></div>
     <div class="qtitle" id="qText">載入中...</div>
+    <a class="event-back" id="eventBackLink" href="/event.html">← 返回簽到與投票</a>
   </div>
 </div>
 
@@ -113,7 +115,9 @@
   const qText = $("qText"), qno = $("qno"), feed = $("feed"), tabs = $("tabs"),
         inputs = $("inputs"), txt = $("txt"), sendBtn = $("sendBtn"),
         clearBtn = $("clearBtn"), liveTag = $("liveTag"), toast = $("toast"),
-        errBox = $("err");
+        errBox = $("err"), eventBackLink = $("eventBackLink");
+
+  if (SUB) eventBackLink.style.display = "inline-flex";
 
   window.__showErr = function(label, e) {
     errBox.classList.add("show");
