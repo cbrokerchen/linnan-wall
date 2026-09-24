@@ -11,6 +11,7 @@
     <div class="brand">LINNAN ADMIN</div>
     <div class="toolbar"><div><h1>地方同工會管理</h1><p class="lead">管理本次活動的名單、簽到與投票階段。</p></div><button id="loginBtn">Google 管理員登入</button><button id="logoutBtn" class="secondary hidden">登出</button></div>
     <div id="authMessage" class="notice">請使用授權的管理員 Google 帳號登入。</div>
+    <div id="message" class="notice hidden" role="status" aria-live="polite"></div>
 
     <section id="adminPanel" class="hidden">
       <section class="card stack">
@@ -48,7 +49,6 @@
         <div id="adminResults"></div>
       </section>
     </section>
-    <div id="message" class="notice hidden"></div>
   </main>
   <script type="module" src="admin.js"></script>
 </body>
