@@ -24,6 +24,23 @@
       </section>
 
       <section class="card stack">
+        <h2>互動牆管理</h2>
+        <div id="wallActiveQuestion" class="notice">互動題目載入中。</div>
+        <div id="wallQuestionButtons" class="wall-question-grid" aria-label="切換互動牆題目">
+          <button type="button" class="secondary" data-wall-question="1">第 1 題</button>
+          <button type="button" class="secondary" data-wall-question="2">第 2 題</button>
+          <button type="button" class="secondary" data-wall-question="3">第 3 題</button>
+          <button type="button" class="secondary" data-wall-question="4">第 4 題</button>
+        </div>
+        <div id="wallResponseCount" class="meta">回應統計載入中。</div>
+        <div class="row">
+          <a class="button-link secondary" href="/" target="_blank" rel="noopener">開啟投影畫面</a>
+          <a class="button-link secondary" href="/?s=1" target="_blank" rel="noopener">開啟手機輸入頁</a>
+        </div>
+        <button id="clearWallQuestion" type="button" class="danger">清空目前題目的回應</button>
+      </section>
+
+      <section class="card stack">
         <h2>候選人</h2>
         <label>每行一位，依顯示順序排列<textarea id="candidates" placeholder="王小明&#10;陳小華"></textarea></label>
         <button id="saveCandidates">儲存候選人</button>

@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, serverTimestamp, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { firebaseConfig, functionsRegion } from "./firebase-config.js";
 
@@ -11,8 +11,16 @@ const functions = getFunctions(app, functionsRegion);
 const staffCheckIn = httpsCallable(functions, "staffCheckIn");
 const $ = (id) => document.getElementById(id);
 const EVENT_ID = "registration-test";
+const WALL_QUESTIONS = [
+  "你希望我們地方教會除了差傳以外，還有哪些是可以一起合作？",
+  "牧會的過程中，你覺得最辛苦的是什麼？",
+  "你的教會最需要代禱的是什麼？",
+  "你個人需要代禱的是什麼？",
+];
 let unsubscribers = [];
 let adminInitialized = false;
+let activeWallQuestion = 1;
+let wallPostsUnsubscribe = null;
 
 $("loginBtn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(showError);
 $("logoutBtn").onclick = () => signOut(auth);
@@ -25,12 +33,15 @@ onAuthStateChanged(auth, async (user) => {
   if (!authorized) {
     unsubscribers.forEach((unsubscribe) => unsubscribe());
     unsubscribers = [];
+    if (wallPostsUnsubscribe) wallPostsUnsubscribe();
+    wallPostsUnsubscribe = null;
     adminInitialized = false;
   }
   if (authorized && !adminInitialized) {
     adminInitialized = true;
     $("eventUrl").textContent = `${location.origin}/event.html`;
     subscribeStats(EVENT_ID);
+    subscribeWallAdmin();
     await loadEventSettings();
   }
 });
@@ -132,6 +143,57 @@ function subscribeStats(eventId) {
   unsubscribers.push(onSnapshot(collection(db, "events", eventId, "candidates"), (snapshot) => { candidates = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })); render(); }));
   unsubscribers.push(onSnapshot(collection(db, "events", eventId, "tallies"), (snapshot) => { tallies = new Map(snapshot.docs.map((item) => [item.id, item.data().count || 0])); render(); }));
 }
+
+function subscribeWallAdmin() {
+  const unsubscribe = onSnapshot(doc(db, "config", "active"), (snapshot) => {
+    const nextQuestion = Number(snapshot.data()?.q || 1);
+    activeWallQuestion = Number.isInteger(nextQuestion) && nextQuestion >= 1 && nextQuestion <= WALL_QUESTIONS.length ? nextQuestion : 1;
+    $("wallActiveQuestion").textContent = `目前第 ${activeWallQuestion} 題：${WALL_QUESTIONS[activeWallQuestion - 1]}`;
+    document.querySelectorAll("[data-wall-question]").forEach((button) => {
+      const active = Number(button.dataset.wallQuestion) === activeWallQuestion;
+      button.classList.toggle("active", active);
+      button.classList.toggle("secondary", !active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (wallPostsUnsubscribe) wallPostsUnsubscribe();
+    const postsQuery = query(collection(db, "posts"), where("q", "==", activeWallQuestion));
+    wallPostsUnsubscribe = onSnapshot(postsQuery, (postsSnapshot) => {
+      const totalResponses = postsSnapshot.docs.reduce((sum, item) => sum + Number(item.data().count || 1), 0);
+      $("wallResponseCount").textContent = `目前共 ${totalResponses} 次回應，${postsSnapshot.size} 個不同答案。`;
+    }, showError);
+  }, showError);
+  unsubscribers.push(unsubscribe);
+}
+
+$("wallQuestionButtons").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-wall-question]");
+  if (!button) return;
+  const question = Number(button.dataset.wallQuestion);
+  if (!Number.isInteger(question) || question < 1 || question > WALL_QUESTIONS.length) return;
+  setBusy(button, true);
+  try {
+    await setDoc(doc(db, "config", "active"), { q: question }, { merge: true });
+    showMessage(`互動牆已切換至第 ${question} 題。`, false);
+  } catch (error) { showError(error); }
+  finally { setBusy(button, false); }
+});
+
+$("clearWallQuestion").onclick = async () => {
+  const question = activeWallQuestion;
+  if (!confirm(`確定清空互動牆第 ${question} 題的所有回應嗎？此操作無法復原。`)) return;
+  const button = $("clearWallQuestion");
+  setBusy(button, true);
+  try {
+    const snapshot = await getDocs(query(collection(db, "posts"), where("q", "==", question)));
+    for (let offset = 0; offset < snapshot.docs.length; offset += 400) {
+      const batch = writeBatch(db);
+      snapshot.docs.slice(offset, offset + 400).forEach((item) => batch.delete(item.ref));
+      await batch.commit();
+    }
+    showMessage(`已清空互動牆第 ${question} 題的 ${snapshot.size} 個答案。`, false);
+  } catch (error) { showError(error); }
+  finally { setBusy(button, false); }
+};
 
 $("participantRoster").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-staff-checkin]");

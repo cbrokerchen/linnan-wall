@@ -6,7 +6,7 @@ Firebase Hosting site for the existing discussion wall and the new event check-i
 
 - `/` — existing discussion wall
 - `/event.html` — participant check-in and voting for the single configured event
-- `/admin.html` — setup, participant import, candidates, status, and results for the same event
+- `/admin.html` — setup, participant import, candidates, status, results, and discussion-wall controls for the same event
 
 ## Event flow
 
@@ -16,6 +16,8 @@ Firebase Hosting site for the existing discussion wall and the new event check-i
 4. Staff can check in a participant from the admin roster. A participant without a smartphone can then vote personally on a shared device; shared-device mode signs out and clears their participant session after the vote.
 5. Change the event to `voting` to accept votes. Participants may select a listed candidate or enter a missing candidate's name; creation and voting happen atomically and no creator identity is stored.
 6. Change it to `closed` to stop voting, then `results` to publish aggregate totals.
+
+The same administrator page can switch the active discussion-wall question, show its live response count, open the projector or mobile submission view, and clear the active question after confirmation.
 
 Name/church lookup keys are normalized and stored as SHA-256 hashes alongside the administrator-only roster fields. Votes are processed by a callable Cloud Function transaction. Firestore stores a participant's used receipt and aggregate candidate tallies in separate collections; it does not store a participant-to-candidate mapping.
 
